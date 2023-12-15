@@ -1,0 +1,10 @@
+.~lock*
+*.vs
+*.vscode
+*.obj
+*.o
+*.a
+*.out
+*.lib
+*.dll
+[Bb]uild*

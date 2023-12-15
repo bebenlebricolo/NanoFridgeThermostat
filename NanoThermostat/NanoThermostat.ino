@@ -14,17 +14,19 @@ volatile uint8_t timer_ticker = 0;
 const uint16_t time_on_seconds = 3600;
 const uint16_t time_off_seconds = 7200;
 
+// Using TIMER2 CompA vector to increment the time variable
+ISR(TIMER2_COMPA_vect)
+{
+  timer_ticker++; 
+}
 
-void setup() {
-  pinMode(button_pin, INPUT_PULLUP);
-  pinMode(relay_pin_1, OUTPUT);
-  pinMode(relay_pin_2, OUTPUT);
-
-  digitalWrite(relay_pin_1, LOW);
-  digitalWrite(relay_pin_2, LOW);
-
+/**
+  * @brief Setups timer 2 as a slow timer (with the biggest prescaler of 1024) and sets the compare value so that the interrupt frequency is around 100Hz.
+*/
+void setup_timer(void)
+{
   TCCR2A = (1 << WGM21); // CTC mode
-  
+    
   // Prescaler of 1024
   TCCR2B = (1 << CS22) | (1 << CS21) | (1<<CS20);
   
@@ -37,15 +39,23 @@ void setup() {
   
   // Enable interrupts for this counter
   TIMSK2 |= (1<<OCIE2A); 
-  sei();
   TCNT2 = 0;
+}
+
+void setup() 
+{
+  pinMode(button_pin, INPUT_PULLUP);
+  pinMode(relay_pin_1, OUTPUT);
+  pinMode(relay_pin_2, OUTPUT);
+
+  digitalWrite(relay_pin_1, LOW);
+  digitalWrite(relay_pin_2, LOW);
+
+  setup_timer();
+  sei();
   //Serial.begin(9600);
 }
 
-ISR(TIMER2_COMPA_vect)
-{
-  timer_ticker++; 
-}
 
 
 // When the button is pushed, it means the refrigerator is in its "forced mode"

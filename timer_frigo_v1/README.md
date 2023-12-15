@@ -1,4 +1,4 @@
-# NanoFridgeThermostat
+# NanoFridgeThermostat (V1)
 Off-the-shelf fridge thermostat using an ArduinoNano to replace a broken fridge thermomechanical thermostat.
 
 This project was born with the sole purpose of repairing a dying fridge whose thermostat was completely dead.
@@ -13,7 +13,8 @@ All components were components I had lying around :
 * Wires and female header (single row, 2.54 mm pitch)
 * Electrical tape to isolate components
 
-# Future improvements
+# Future improvements (in V2)
 * Using a triac and triac driver as the main switching elements
     * Solid state is cool and removes the issue of relay contact points wearing down
 * Adding a thermistor to measure temperature within the fridge and cycle towards a target temperature
+See [NanoThermostatV2 Readme](../NanoThermostat/README.md).
