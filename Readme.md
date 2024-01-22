@@ -18,3 +18,21 @@ A newer revision of the thermostat is currently in the works and several small i
 * Screen and buttons to monitor and setup the fridge parameters from outside the fridge.
 
 More details can be found in the [NanoThermostat-V2](NanoThermostat-V2) folder.
+
+## Tools
+This repository embeds a small python script whose purpose is to generate C source files for a given thermistor. It uses the basic parameters for a NTC thermistor :
+* R0 : base resistance of the thermistor, at room temperature (usually, 25°Celsius)
+* Beta constant : temperature constant, rated in Kelvin, for this thermistor
+* name of the generated source files
+
+It generates the default profile for an NTC thermistor, which needs to be compiled in the project in order to be used.
+It's used through the small [thermistor.h](NanoThermostat-V2/thermistor.h) and [thermistor.c](NanoThermostat-V2/thermistor.c) module as the reference table for temperature reading.
+
+Usage :
+```bash
+python thermistor_generator.py 100 3950 thermistor_ntc_100k_3950K
+# 1 - Generating thermistor data
+# 2 - Generating header file
+# 3 - Generating source file
+```
+This generates files in the [Generated](Generated) folder.

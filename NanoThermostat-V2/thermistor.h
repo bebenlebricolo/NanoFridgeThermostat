@@ -14,7 +14,7 @@ typedef enum
     RESUNIT_OHMS,       /**> Ohms               */
     RESUNIT_KILOOHMS,   /**> Kilo Ohms (10³)    */
     RESUNIT_MEGAOHMS    /**> Mega Ohms (10⁶)    */
-} resistance_scale_t;
+} resistance_unit_t;
 
 /**
  * @brief Thermistor data base construct (maps a temperature with a resistance)
@@ -29,8 +29,8 @@ typedef struct
  * @brief Thermistor data for a given thermistor
 */
 typedef struct {
-    temp_res_t data[THERMISTOR_MAX_SAMPLES];    /**> (Ordered) array of thermistor data pairing */
-    resistance_scale_t unit;                     /**> Resistance scale used*/
+    temp_res_t data[THERMISTOR_MAX_SAMPLES]; /**> (Ordered) array of thermistor data pairing */
+    resistance_unit_t unit;                  /**> Resistance scale used*/
 } thermistor_data_t;
 
 
