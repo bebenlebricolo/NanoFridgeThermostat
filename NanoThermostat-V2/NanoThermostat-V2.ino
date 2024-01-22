@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "thermistor.h"
+#include "thermistor_ntc_100k_3950K.h"
+
 //#define F_CPU 16000000
 
 const uint8_t  button_pin = 4; // D4
@@ -17,7 +20,7 @@ const uint16_t time_off_seconds = 7200;
 // Using TIMER2 CompA vector to increment the time variable
 ISR(TIMER2_COMPA_vect)
 {
-  timer_ticker++; 
+  timer_ticker++;
 }
 
 /**
@@ -26,23 +29,23 @@ ISR(TIMER2_COMPA_vect)
 void setup_timer(void)
 {
   TCCR2A = (1 << WGM21); // CTC mode
-    
+
   // Prescaler of 1024
   TCCR2B = (1 << CS22) | (1 << CS21) | (1<<CS20);
-  
+
   // 16MHz / 1024 -> 15625 HZ
   // 15625 / 156 ~= 100,1 HZ -> closest to 100 Hz so we can just "count" up to 100 with a software counter and derive seconds out of this
   // 15625 / 157 ~= 99,5 HZ
-  
+
   // Will raise an interrupt around 100 times per second
-  OCR2A = 155; 
-  
+  OCR2A = 155;
+
   // Enable interrupts for this counter
-  TIMSK2 |= (1<<OCIE2A); 
+  TIMSK2 |= (1<<OCIE2A);
   TCNT2 = 0;
 }
 
-void setup() 
+void setup()
 {
   pinMode(button_pin, INPUT_PULLUP);
   pinMode(relay_pin_1, OUTPUT);
@@ -81,19 +84,19 @@ void aggregate_seconds(volatile uint8_t* ticker, uint32_t* seconds)
 void loop() {
   // read the state of the pushbutton value:
   forced_run = digitalRead(button_pin) == HIGH;
-  
+
   aggregate_seconds(&timer_ticker, &current_seconds);
 
   //Serial.println(forced_run);
 
   // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
-  if (forced_run == true) 
+  if (forced_run == true)
   {
     // turn LED on:
     digitalWrite(relay_pin_1, LOW);
     digitalWrite(relay_pin_2, LOW);
-  } 
-  else 
+  }
+  else
   {
     if((cooling_down)
     && (current_seconds - previous_toggle) >= time_on_seconds)
