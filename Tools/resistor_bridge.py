@@ -30,8 +30,8 @@ def print_help():
     print(f"schematic : {schematic}\n")
     print(f"Usage : {Path(__file__).name} rmin rmax (OPT)")
     print("Where : ")
-    print("     rmin : minimum value of NTC resistance (high temperature)")
-    print("     rmax : maximum value of NTC resistance (low temperature)")
+    print("     rmin  : minimum value of NTC resistance (high temperature)")
+    print("     rmax  : maximum value of NTC resistance (low temperature)")
     print("     (OPT) : -h, --help  : prints this help")
     print("Note : select those values to match the typical temperature range that the NTC will see.")
 

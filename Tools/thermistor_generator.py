@@ -31,13 +31,13 @@ class ThermistorData :
 
 def print_help():
     print("This scripts generates thermistor data in the form of a C source files (header + source) pair.")
-    print("They should be sourced / embedded in your application to be usable.")
-    print(f"Usage : python {Path(__file__).name} r0 beta name (OPT)\n")
+    print("They should be sourced / embedded in your application to be usable.\n")
+    print(f"Usage : python {Path(__file__).name} r0 beta name (OPT)")
     print("Where : ")
     print("     r0      : base resistance of NTC thermistor (calibrated @25°C)")
     print("     beta    : β constant of this NTC thermistor")
     print("     name    : name of the output file (usually something like \"thermistor_100k_3950K\")")
-    print("     (OPT) : -h, --help  : prints this help")
+    print("     (OPT)   : -h, --help  : prints this help")
 
 
 def generate_header(filepath : Path, name : str) -> None :
@@ -75,7 +75,7 @@ def generate_source_file(filepath : Path, name : str, data : ThermistorData) -> 
         file.write("};\n")
 
 def main(args : list[str]) -> int:
-    script_dir = Path(__file__).parent
+    script_dir = Path(__file__).parent.parent
     output_directory = script_dir.joinpath("Generated")
     if not output_directory.exists() :
         output_directory.mkdir(parents=True, exist_ok=True)
