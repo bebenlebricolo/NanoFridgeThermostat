@@ -50,7 +50,9 @@ const thermistor_data_t thermistor_ntc_100k_3950K =  {
         {20, 119},
         {21, 114},
         {22, 109},
-        {23, 104}
+        {23, 104},
+        {24, 100},
+        {25, 95}
     },
     .unit = RESUNIT_KILOOHMS
 };

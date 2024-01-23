@@ -52,7 +52,7 @@ def generate_header(filepath : Path, name : str) -> None :
 
 def generate_data(r0 : int, beta : int) -> ThermistorData :
     thermistor_data = ThermistorData()
-    for i in range(C_MIN_TEMP, C_MAX_TEMP, C_TEMP_STEP) :
+    for i in range(C_MIN_TEMP, C_MAX_TEMP + 2, C_TEMP_STEP) :
         data = TempRes()
         data.temperature = int(float(i) + C_KELVIN_TO_DEG)
         data.resistance = int(r0 * math.exp(beta * (1/(i + C_KELVIN_TO_DEG) - 1/C_CALIB_TEMP)))
