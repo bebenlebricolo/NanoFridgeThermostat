@@ -28,10 +28,11 @@ def print_help():
     print("This tool computes the ideal value of R (upper resistor) that will allow for the maximum voltage swing of the bridge assuming NTC value is changing between 2 values.")
     print("Note that the wider the range, better will be the output voltage swing amplitude.")
     print(f"schematic : {schematic}\n")
-    print(f"Usage : {Path(__file__).name} rmin rmax")
+    print(f"Usage : {Path(__file__).name} rmin rmax (OPT)")
     print("Where : ")
     print("     rmin : minimum value of NTC resistance (high temperature)")
     print("     rmax : maximum value of NTC resistance (low temperature)")
+    print("     (OPT) : -h, --help  : prints this help")
     print("Note : select those values to match the typical temperature range that the NTC will see.")
 
 
