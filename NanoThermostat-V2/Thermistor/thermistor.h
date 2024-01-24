@@ -7,6 +7,7 @@ extern "C" {
 #endif
 
 #include<stdint.h>
+#include "interpolation.h"
 
 #define THERMISTOR_MAX_SAMPLES 50U
 
@@ -71,7 +72,7 @@ int8_t read_temperature(thermistor_data_t const * const thermistor, uint16_t con
  *      RANGE_CHECK_LEFT     : input value is NOT included within the two values range, and is on the left side of the range.
  *      RANGE_CHECK_RIGHT    : input value is NOT included within the two values range, and is on the right side of the range.
 */
-range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t const * const resistance, temp_res_t ** low, temp_res_t ** high);
+range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t const * const resistance, temp_res_t const ** low, temp_res_t const ** high);
 
 #ifdef __cplus_plus
 }

@@ -6,24 +6,24 @@ range_check_t check_value_range_uint16(uint16_t const * const value, range_uint1
     bool positive_range = range->start < range->end;
     if(positive_range)
     {
-        if(value <= range->start)
+        if(*value <= range->start)
         {
             return RANGE_CHECK_LEFT;
         }
 
-        if(value >= range->end)
+        if(*value >= range->end)
         {
             return RANGE_CHECK_RIGHT;
         }
     }
     else
     {
-        if(value >= range->start)
+        if(*value >= range->start)
         {
             return RANGE_CHECK_LEFT;
         }
 
-        if(value <= range->end)
+        if(*value <= range->end)
         {
             return RANGE_CHECK_RIGHT;
         }
@@ -53,6 +53,5 @@ int8_t linear_interpolate_uint16_to_int8(uint16_t const * const value, range_uin
 
 
 
-
-
+    return 0;
 }

@@ -1,9 +1,9 @@
 #include "thermistor.h"
-#include "math/interpolation.h"
+#include "interpolation.h"
 
 #include <stddef.h>
 
-range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t const * const resistance, temp_res_t ** low, temp_res_t ** high)
+range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t const * const resistance, temp_res_t const ** low, temp_res_t const ** high)
 {
     // Clamp resistance to the lowest resistance found in the curve (aka highest temperature)
     if(*resistance < thermistor->data[thermistor->sample_count - 1].resistance)
@@ -42,8 +42,8 @@ int8_t read_temperature(thermistor_data_t const * const thermistor, uint16_t con
     int8_t result = 0;
 
     // Find boundaries of resistance within the lookup table
-    temp_res_t * low = NULL;
-    temp_res_t * high = NULL;
+    temp_res_t const * low = NULL;
+    temp_res_t const * high = NULL;
 
     range_check_t check = frame_value(thermistor, resistance, &low, &high);
     if(check != RANGE_CHECK_INCLUDED)
