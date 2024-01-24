@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from io import TextIOWrapper
 import sys
 import math
 from dataclasses import dataclass, field
@@ -40,15 +41,26 @@ def print_help():
     print("     (OPT)   : -h, --help  : prints this help")
 
 
-def generate_header(filepath : Path, name : str) -> None :
-    header_define = "THERMISTOR_" + name.upper()
+def write_cplusplus_extern_begin(file : TextIOWrapper) :
+    file.write("#ifdef __cplusplus\n")
+    file.write("extern \"C\" {\n")
+    file.write("#endif\n\n")
+
+def write_cplusplus_extern_end(file : TextIOWrapper) :
+    file.write("#ifdef __cplusplus\n")
+    file.write("}\n")
+    file.write("#endif\n\n")
+
+def generate_header(filepath : Path, name : str, sample_count : int) -> None :
+    header_define = name.upper() + "_HEADER"
 
     with open(filepath, "w") as file :
         file.write(f"#ifndef {header_define}\n")
         file.write(f"#define {header_define}\n\n")
-
+        write_cplusplus_extern_begin(file)
         file.write(f"#include \"thermistor.h\"\n\n")
-
+        file.write(f"#define {name.upper()}_SAMPLE_COUNT {sample_count}U\n")
+        write_cplusplus_extern_end(file)
         file.write(f"#endif /* {header_define} */\n")
 
 def generate_data(r0 : int, beta : int) -> ThermistorData :
@@ -71,7 +83,8 @@ def generate_source_file(filepath : Path, name : str, data : ThermistorData) -> 
                 file.write(",")
             file.write("\n")
         file.write("    },\n")
-        file.write(f"    .unit = {ResistanceUnit.KiloOhms.value}\n")
+        file.write(f"    .unit = {ResistanceUnit.KiloOhms.value},\n")
+        file.write(f"    .sample_count = {name.upper()}_SAMPLE_COUNT\n")
         file.write("};\n")
 
 def main(args : list[str]) -> int:
@@ -97,7 +110,7 @@ def main(args : list[str]) -> int:
     print("1 - Generating thermistor data")
     thermistor_data = generate_data(r0, beta)
     print("2 - Generating header file")
-    generate_header(output_directory.joinpath(name + ".h"), name)
+    generate_header(output_directory.joinpath(name + ".h"), name, C_THERMISTOR_MAX_SAMPLES)
     print("3 - Generating source file")
     generate_source_file(output_directory.joinpath(name + ".c"), name, thermistor_data)
 

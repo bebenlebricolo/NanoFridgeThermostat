@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "thermistor.h"
-#include "thermistor_ntc_100k_3950K.h"
+#include "thermistor/thermistor.h"
+#include "thermistor/thermistor_ntc_100k_3950K.h"
 
 //#define F_CPU 16000000
 
