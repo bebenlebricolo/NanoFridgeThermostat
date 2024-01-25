@@ -17,8 +17,8 @@ C_CALIB_TEMP = 25 + C_KELVIN_TO_DEG
 
 @dataclass
 class TempRes:
-    temperature : int = 0
-    resistance : int = 0
+    temperature : float = 0
+    resistance : float = 0
 
 class ResistanceUnit(Enum):
     Ohms = "RESUNIT_OHMS"
@@ -29,6 +29,7 @@ class ResistanceUnit(Enum):
 class ThermistorData :
     data : list[TempRes] = field(default_factory=list)
     unit : ResistanceUnit = ResistanceUnit.KiloOhms
+    sample_count : int = 0
 
 def print_help():
     print("This scripts generates thermistor data in the form of a C source files (header + source) pair.")
@@ -59,26 +60,41 @@ def generate_header(filepath : Path, name : str, sample_count : int) -> None :
         file.write(f"#define {header_define}\n\n")
         write_cplusplus_extern_begin(file)
         file.write(f"#include \"thermistor.h\"\n\n")
-        file.write(f"#define {name.upper()}_SAMPLE_COUNT {sample_count}U\n")
+        file.write(f"#define {name.upper()}_SAMPLE_COUNT {sample_count}U\n\n")
+        file.write(f"const thermistor_data_t {name}_data;\n\n")
+
         write_cplusplus_extern_end(file)
         file.write(f"#endif /* {header_define} */\n")
 
-def generate_data(r0 : int, beta : int) -> ThermistorData :
+def generate_data(r0 : int, beta : int, step : int, min_temp : int, max_temp : int) -> ThermistorData :
     thermistor_data = ThermistorData()
-    for i in range(C_MIN_TEMP, C_MAX_TEMP + 2, C_TEMP_STEP) :
+    interval = range(min_temp, max_temp, step)
+
+    for i in interval :
         data = TempRes()
-        data.temperature = int(float(i) + C_KELVIN_TO_DEG)
-        data.resistance = int(r0 * math.exp(beta * (1/(i + C_KELVIN_TO_DEG) - 1/C_CALIB_TEMP)))
+        data.temperature = i + C_KELVIN_TO_DEG
+        data.resistance = r0 * math.exp(beta * (1/(i + C_KELVIN_TO_DEG) - 1/C_CALIB_TEMP))
         thermistor_data.data.append(data)
+
+    thermistor_data.sample_count = len(thermistor_data.data)
+
+    # Raise a warning at the end, user might want to adjust parameters
+    # or tweak C file him/herself
+    if thermistor_data.sample_count >= C_THERMISTOR_MAX_SAMPLES :
+        print(f"/!\\ too many samples in thermistor_data.data")
+        print(f"    - samples_count : {len(interval)}")
+        print(f"    - min temp : {min_temp}")
+        print(f"    - max temp : {max_temp}")
+
     return thermistor_data
 
 def generate_source_file(filepath : Path, name : str, data : ThermistorData) -> None :
     with open(filepath, "w") as file :
         file.write(f"#include \"{name}.h\"\n\n")
-        file.write(f"const thermistor_data_t {name} =  {{\n")
+        file.write(f"const thermistor_data_t {name}_data =  {{\n")
         file.write("    .data = {\n")
         for i in range(len(data.data)):
-            file.write(f"        {{{int(data.data[i].temperature - C_KELVIN_TO_DEG)}, {data.data[i].resistance}}}")
+            file.write(f"        {{{int(data.data[i].temperature - C_KELVIN_TO_DEG)}, {int(data.data[i].resistance)}}}")
             if i < len(data.data) - 1:
                 file.write(",")
             file.write("\n")
@@ -108,7 +124,7 @@ def main(args : list[str]) -> int:
     name = args[2]
 
     print("1 - Generating thermistor data")
-    thermistor_data = generate_data(r0, beta)
+    thermistor_data = generate_data(r0, beta, 5, C_MIN_TEMP, C_MAX_TEMP)
     print("2 - Generating header file")
     generate_header(output_directory.joinpath(name + ".h"), name, C_THERMISTOR_MAX_SAMPLES)
     print("3 - Generating source file")
