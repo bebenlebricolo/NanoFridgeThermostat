@@ -15,6 +15,8 @@ if(WIN32)
     FetchContent_MakeAvailable(googletest)
     add_library(GTest::GTest INTERFACE IMPORTED)
     target_link_libraries(GTest::GTest INTERFACE gtest_main)
+else()
+    find_package(GTest REQUIRED)
 endif()
 enable_testing()
 

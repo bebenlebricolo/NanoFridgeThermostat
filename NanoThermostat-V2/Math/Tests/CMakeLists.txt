@@ -10,5 +10,5 @@ target_include_directories(math_test SYSTEM PUBLIC
 
 target_link_libraries(math_test
     thermistor
-    GTest::GTest
+    ${GTEST_LIBRARIES}
 )
