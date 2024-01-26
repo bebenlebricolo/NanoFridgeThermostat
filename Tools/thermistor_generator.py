@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from argparse import ArgumentParser
 
 # Generates thermistor data c source files that exposes thermistor data
 C_THERMISTOR_MAX_SAMPLES = 50
@@ -31,17 +32,6 @@ class ThermistorData :
     unit : ResistanceUnit = ResistanceUnit.KiloOhms
     sample_count : int = 0
 
-def print_help():
-    print("This scripts generates thermistor data in the form of a C source files (header + source) pair.")
-    print("They should be sourced / embedded in your application to be usable.\n")
-    print(f"Usage : python {Path(__file__).name} r0 beta name (OPT)")
-    print("Where : ")
-    print("     r0      : base resistance of NTC thermistor (calibrated @25°C)")
-    print("     beta    : β constant of this NTC thermistor")
-    print("     name    : name of the output file (usually something like \"thermistor_100k_3950K\")")
-    print("     (OPT)   : -h, --help  : prints this help")
-
-
 def write_cplusplus_extern_begin(file : TextIOWrapper) :
     file.write("#ifdef __cplusplus\n")
     file.write("extern \"C\" {\n")
@@ -66,9 +56,13 @@ def generate_header(filepath : Path, name : str, sample_count : int) -> None :
         write_cplusplus_extern_end(file)
         file.write(f"#endif /* {header_define} */\n")
 
-def generate_data(r0 : int, beta : int, step : int, min_temp : int, max_temp : int) -> ThermistorData :
+def generate_data(r0 : int, beta : int, count : int, min_temp : int, max_temp : int) -> ThermistorData :
     thermistor_data = ThermistorData()
-    interval = range(min_temp, max_temp, step)
+    delta = (max_temp - min_temp) / count
+    interval : list[int] = []
+
+    for i in range(count + 1) :
+        interval.append(int(min_temp + i*delta))
 
     for i in interval :
         data = TempRes()
@@ -100,7 +94,7 @@ def generate_source_file(filepath : Path, name : str, data : ThermistorData) -> 
             file.write("\n")
         file.write("    },\n")
         file.write(f"    .unit = {ResistanceUnit.KiloOhms.value},\n")
-        file.write(f"    .sample_count = {data.sample_count}\n")
+        file.write(f"    .sample_count = {name.upper()}_SAMPLE_COUNT\n")
         file.write("};\n")
 
 def main(args : list[str]) -> int:
@@ -109,24 +103,38 @@ def main(args : list[str]) -> int:
     if not output_directory.exists() :
         output_directory.mkdir(parents=True, exist_ok=True)
 
+    parser = ArgumentParser()
+    parser.add_argument("r0", help="Base resistance value of NTC thermistor (in KOhms)")
+    parser.add_argument("beta", help="Thermistor thermal constant (β constant)")
+    parser.add_argument("name", help="Name of the output file (e.g. \"thermistor_100k_3950K\")")
+    parser.add_argument("--min", default=-24, help="Minimum temperature (°Celsius) - integer")
+    parser.add_argument("--max", default=25, help="Maximum temperature (°Celsius) - integer")
+    parser.add_argument("--count", default=10, help="Number of desired data values in generated source file")
 
-    if "-h" in args or "--help" in args :
-        print_help()
-        return 0
+    parsed = parser.parse_args(args)
+    r0 = int(parsed.r0)
+    beta = int(parsed.beta)
+    name = parsed.name
 
-    if len(args) != 3 :
-        print(f"/!\\ Wrong number of input args. Given was : {len(args)}")
-        print_help()
+    try:
+        min_temp = int(parsed.min)
+        max_temp = int(parsed.max)
+        count = int(parsed.count)
+    except :
+        print("/!\\ Caught invalid data in either min, max or count parameters. Expecting integer data type.")
         return 1
 
-    r0 = int(args[0])
-    beta = int(args[1])
-    name = args[2]
+    if (max_temp - min_temp) < count :
+        print("/!\\ Too many values will be generated !")
+        print(f"     -> count {count} was given (or infered) but (max - min) = {max_temp - min_temp}")
+        print(f"     -> there will potentially be several identical data points in the resulting file (due to integer aliasing)")
+        print(f"     -> Clamping count to {max_temp - min_temp}")
+
 
     print("1 - Generating thermistor data")
-    thermistor_data = generate_data(r0, beta, 5, C_MIN_TEMP, C_MAX_TEMP)
+    thermistor_data = generate_data(r0, beta, count - 1, C_MIN_TEMP, C_MAX_TEMP)
     print("2 - Generating header file")
-    generate_header(output_directory.joinpath(name + ".h"), name, C_THERMISTOR_MAX_SAMPLES)
+    generate_header(output_directory.joinpath(name + ".h"), name, len(thermistor_data.data))
     print("3 - Generating source file")
     generate_source_file(output_directory.joinpath(name + ".c"), name, thermistor_data)
 
