@@ -2,12 +2,12 @@
 #ifndef THERMISTOR_HEADER
 #define THERMISTOR_HEADER
 
-#ifdef __cplus_plus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 #include<stdint.h>
-#include "interpolation.h"
+#include "Math/interpolation.h"
 
 #define THERMISTOR_MAX_SAMPLES 50U
 
@@ -74,7 +74,7 @@ int8_t read_temperature(thermistor_data_t const * const thermistor, uint16_t con
 */
 range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t const * const resistance, temp_res_t const ** low, temp_res_t const ** high);
 
-#ifdef __cplus_plus
+#ifdef __cplusplus
 }
 #endif
 

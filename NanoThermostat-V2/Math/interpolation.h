@@ -1,8 +1,9 @@
 #ifndef INTERPOLATION_HEADER
 #define INTERPOLATION_HEADER
 
-#ifdef __cplus_plus
-extern "C" {
+#ifdef __cplusplus
+extern "C"
+{
 #endif
 
 #include<stdint.h>
@@ -64,7 +65,7 @@ int8_t linear_interpolate_uint16_to_int8(uint16_t const * const value,
 range_check_t check_value_range_uint16(uint16_t const * const value, range_uint16_t const * const range);
 
 
-#ifdef __cplus_plus
+#ifdef __cplusplus
 }
 #endif
 

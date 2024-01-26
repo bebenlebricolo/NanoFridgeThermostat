@@ -41,25 +41,10 @@ else()
     set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} /O2 /W4")
 endif()
 
-add_library(thermistor
-    ${CMAKE_CURRENT_SOURCE_DIR}/Math/interpolation.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Thermistor/thermistor_ntc_100k_3950K.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/Thermistor/thermistor.c
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/Math/interpolation.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Thermistor/thermistor_ntc_100k_3950K.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/Thermistor/thermistor.h
+# Add subdirectories
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Math
+    ${CMAKE_CURRENT_BINARY_DIR}/Math
 )
-
-target_include_directories(thermistor PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/Thermistor
-    ${CMAKE_CURRENT_SOURCE_DIR}/Math
-)
-
-# Add subdirectories (Tests)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Math/Tests
-    ${CMAKE_CURRENT_BINARY_DIR}/Tests/Math
-)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Thermistor/Tests
-    ${CMAKE_CURRENT_BINARY_DIR}/Tests/Thermistor
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Thermistor
+    ${CMAKE_CURRENT_BINARY_DIR}/Thermistor
 )

@@ -1,5 +1,5 @@
 #include "thermistor.h"
-#include "interpolation.h"
+#include "Math/interpolation.h"
 
 #include <stddef.h>
 
