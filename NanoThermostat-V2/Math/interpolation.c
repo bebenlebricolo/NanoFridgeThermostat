@@ -4,7 +4,7 @@
 // Those aliasing factors are used to oversize a little
 // bit temporary results in interpolation on integer, in order to reduce
 // overall aliasing (the bigger the number the lesser the aliasing effect, so that we loose less "steps")
-#define UINT16_ALIASING_FACTOR 100U
+#define UINT16_ALIASING_FACTOR 100
 
 range_check_t check_value_range_uint16(uint16_t const * const value, range_uint16_t const * const range)
 {

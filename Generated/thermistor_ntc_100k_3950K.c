@@ -14,5 +14,5 @@ const thermistor_data_t thermistor_ntc_100k_3950K_data =  {
         {21, 119}
     },
     .unit = RESUNIT_KILOOHMS,
-    .sample_count = THERMISTOR_NTC_100K_3950K_SAMPLE_COUNT
+    .sample_count = 10
 };

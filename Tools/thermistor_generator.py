@@ -61,7 +61,7 @@ def generate_header(filepath : Path, name : str, sample_count : int) -> None :
         write_cplusplus_extern_begin(file)
         file.write(f"#include \"thermistor.h\"\n\n")
         file.write(f"#define {name.upper()}_SAMPLE_COUNT {sample_count}U\n\n")
-        file.write(f"const thermistor_data_t {name}_data;\n\n")
+        file.write(f"extern const thermistor_data_t {name}_data;\n\n")
 
         write_cplusplus_extern_end(file)
         file.write(f"#endif /* {header_define} */\n")
@@ -100,7 +100,7 @@ def generate_source_file(filepath : Path, name : str, data : ThermistorData) -> 
             file.write("\n")
         file.write("    },\n")
         file.write(f"    .unit = {ResistanceUnit.KiloOhms.value},\n")
-        file.write(f"    .sample_count = {name.upper()}_SAMPLE_COUNT\n")
+        file.write(f"    .sample_count = {data.sample_count}\n")
         file.write("};\n")
 
 def main(args : list[str]) -> int:

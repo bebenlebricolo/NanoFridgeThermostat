@@ -21,6 +21,20 @@ range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t c
         return RANGE_CHECK_LEFT;
     }
 
+    if(*resistance == thermistor->data[0].resistance)
+    {
+        *low = &(thermistor->data[0]);
+        *high = *low;
+        return RANGE_CHECK_INCLUDED;
+    }
+
+    if(*resistance == thermistor->data[thermistor->sample_count - 1].resistance)
+    {
+        *low = &(thermistor->data[thermistor->sample_count - 1]);
+        *high = *low;
+        return RANGE_CHECK_INCLUDED;
+    }
+
     // Linear search
     *low = &(thermistor->data[thermistor->sample_count - 1]);
     *high = &(thermistor->data[0]);
@@ -28,8 +42,8 @@ range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t c
     {
         if(*resistance >= thermistor->data[i].resistance)
         {
-            *low = &(thermistor->data[i + 1]);
-            *high = &(thermistor->data[i]);
+            *low = &(thermistor->data[i]);
+            *high = &(thermistor->data[i - 1]);
             break;
         }
     }
@@ -46,10 +60,25 @@ int8_t read_temperature(thermistor_data_t const * const thermistor, uint16_t con
     temp_res_t const * high = NULL;
 
     range_check_t check = frame_value(thermistor, resistance, &low, &high);
-    if(check != RANGE_CHECK_INCLUDED)
+    switch(check)
     {
-        return low->temperature;
+        case RANGE_CHECK_LEFT :
+            return low->temperature;
+
+        case RANGE_CHECK_RIGHT :
+            return high->temperature;
+
+        case RANGE_CHECK_INCLUDED:
+        default:
+            // Happens when resistance value is outside boundaries or exactly sitting on one end value
+            // of input range.
+            if(low == high)
+            {
+                return low->temperature;
+            }
+            break;
     }
+
 
     range_int8_t temp_range = {
         .start = low->temperature,

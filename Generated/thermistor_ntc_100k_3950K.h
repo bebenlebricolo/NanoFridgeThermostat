@@ -9,7 +9,7 @@ extern "C" {
 
 #define THERMISTOR_NTC_100K_3950K_SAMPLE_COUNT 50U
 
-const thermistor_data_t thermistor_ntc_100k_3950K_data;
+extern const thermistor_data_t thermistor_ntc_100k_3950K_data;
 
 #ifdef __cplusplus
 }
