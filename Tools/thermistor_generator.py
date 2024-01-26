@@ -62,7 +62,9 @@ def generate_data(r0 : int, beta : int, count : int, min_temp : int, max_temp : 
     interval : list[int] = []
 
     for i in range(count + 1) :
-        interval.append(int(min_temp + i*delta))
+        # Removes int aliasing -> round to nearest integer
+        tmp = round(min_temp + i*delta)
+        interval.append(int(tmp))
 
     for i in interval :
         data = TempRes()

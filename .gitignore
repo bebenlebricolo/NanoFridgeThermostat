@@ -8,3 +8,5 @@
 *.lib
 *.dll
 [Bb]uild*
+
+Generated
