@@ -55,7 +55,10 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        "silk_edge_clearance|117348000|100405000|310fe70e-537d-470f-ac9a-ce3137e61f0d|5150ab1e-7e50-401f-a8c9-dbd047c47aca",
+        "silk_edge_clearance|117348000|93300622|310fe70e-537d-470f-ac9a-ce3137e61f0d|85ad7b06-d941-4543-bd8f-89d333aac6a9"
+      ],
       "meta": {
         "version": 2
       },
@@ -173,8 +176,8 @@
       ],
       "track_widths": [
         0.0,
-        0.0,
         0.6,
+        1.0,
         2.0
       ],
       "via_dimensions": [
@@ -183,7 +186,7 @@
           "drill": 0.0
         }
       ],
-      "zones_allow_external_fillets": false
+      "zones_allow_external_fillets": true
     },
     "layer_presets": [],
     "viewports": []
@@ -469,7 +472,9 @@
       "version": 3
     },
     "net_colors": null,
-    "netclass_assignments": null,
+    "netclass_assignments": {
+      "/SnubberResLow": "SnubberResLow"
+    },
     "netclass_patterns": [
       {
         "netclass": "Main",

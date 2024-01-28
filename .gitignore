@@ -10,3 +10,9 @@
 [Bb]uild*
 
 Generated
+
+# Kicad lock files
+*lck
+
+# Don't commit auto backups from kicad
+Hardware/NanoFridgeThermistat-board/NanoFridgeThermistat-board-backups
