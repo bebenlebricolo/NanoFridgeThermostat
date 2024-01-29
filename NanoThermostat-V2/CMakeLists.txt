@@ -48,3 +48,6 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Math
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Thermistor
     ${CMAKE_CURRENT_BINARY_DIR}/Thermistor
 )
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Bridge
+    ${CMAKE_CURRENT_BINARY_DIR}/Bridge
+)
