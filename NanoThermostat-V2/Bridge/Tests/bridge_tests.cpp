@@ -21,6 +21,14 @@ TEST_F(BridgeFixture, bridge_calculate_lower_resistance)
     uint16_t expected = (vcc * result)/(upper_resistance + result);
     ASSERT_NEAR(voltage_milli, expected, 10);
 
+    voltage_milli = 0;
+    result = bridge_get_lower_resistance(&upper_resistance, &voltage_milli, &vcc);
+    ASSERT_EQ(result, 0);
+
+    voltage_milli = vcc;
+    result = bridge_get_lower_resistance(&upper_resistance, &voltage_milli, &vcc);
+    ASSERT_EQ(result, UINT16_MAX);
+
 }
 
 
