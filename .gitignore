@@ -11,11 +11,9 @@
 
 Generated
 
-# Kicad lock files
-*lck
-fp-info-cache
-
 # Kicad stuff
+fp-info-cache
+Hardware/**/*lck
 Hardware/**/*-backups
 \#auto_saved_files\#
 _autosave-*
