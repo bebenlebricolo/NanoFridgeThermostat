@@ -31,7 +31,7 @@ It's used through the small [thermistor.h](NanoThermostat-V2/thermistor.h) and [
 
 Usage :
 ```bash
-python thermistor_generator.py 100 3950 thermistor_ntc_100k_3950K
+python thermistor_generator.py 100 3950 thermistor_ntc_100k_3950K --min -24 --max 25 --count 25
 # 1 - Generating thermistor data
 # 2 - Generating header file
 # 3 - Generating source file
@@ -48,4 +48,25 @@ Usage :
 python resistor_bridge.py 100 1024
 Ideal resistance value for R should be : 320.0
 The unit (Ohms, KOhms, MOhms) is the same as input data
+```
+
+# Tests
+This project embeds some tests projects.
+Those tests are checking that the logic works on a desktop environment prior to be compiled and embedded on a tiny MCU.
+
+## Building the tests
+Runs with CMake :
+```bash
+cmake NanoThermostat-V2 -Bbuild
+cd build/
+make -j
+```
+
+## Tests dependencies
+Googletest framework is used as a test framework and needs to be installed beforehand.
+This is automatically done on Windows platforms (latest build zip is downloaded by CMake itself).
+On Linux, a system-wide installation works very well :
+```bash
+pacman -S gtest # arch linux
+apt-get install libgtest # Ubuntu/debian
 ```
