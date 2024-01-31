@@ -8,7 +8,7 @@ target_include_directories(interpolation_test
     SYSTEM PUBLIC
         ${GTEST_INCLUDE_DIRS}
     PRIVATE
-        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(interpolation_test
