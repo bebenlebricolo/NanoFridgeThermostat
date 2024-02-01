@@ -472,9 +472,7 @@
       "version": 3
     },
     "net_colors": null,
-    "netclass_assignments": {
-      "/SnubberResLow": "SnubberResLow"
-    },
+    "netclass_assignments": null,
     "netclass_patterns": [
       {
         "netclass": "Main",
