@@ -15,6 +15,7 @@ Generated
 fp-info-cache
 Hardware/**/*lck
 Hardware/**/*-backups
+Hardware/**/*.FCBak
 \#auto_saved_files\#
 _autosave-*
 
