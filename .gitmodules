@@ -1,3 +1,6 @@
 [submodule "Hardware/NanoFridgeThermistat-board/kicad-lib-arduino"]
 	path = Hardware/NanoFridgeThermistat-board/kicad-lib-arduino
 	url = git@github.com:g200kg/kicad-lib-arduino.git
+[submodule "Hardware/NanoFridgeThermistat-board/Panelization.pretty"]
+	path = Hardware/NanoFridgeThermistat-board/Panelization.pretty
+	url = https://github.com/madworm/Panelization.pretty.git
