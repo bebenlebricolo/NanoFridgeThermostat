@@ -1,17 +1,17 @@
-add_executable(interpolation_test
+set(TEST_NAME interpolation_test)
+
+add_executable(${TEST_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/interpolation_test.cpp
 )
 
-gtest_discover_tests(interpolation_test)
+gtest_discover_tests(${TEST_NAME})
 
-target_include_directories(interpolation_test
-    SYSTEM PUBLIC
-        ${GTEST_INCLUDE_DIRS}
+target_include_directories(${TEST_NAME}
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
 )
 
-target_link_libraries(interpolation_test
+target_link_libraries(${TEST_NAME}
     mathlib
-    ${GTEST_LIBRARIES}
+    GTest::gtest
 )

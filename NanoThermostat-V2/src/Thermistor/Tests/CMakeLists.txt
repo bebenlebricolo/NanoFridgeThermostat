@@ -1,16 +1,17 @@
-add_executable(thermistor_tests
+set(TEST_NAME thermistor_tests)
+
+add_executable(${TEST_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/thermistor_test.cpp
 )
 
-gtest_discover_tests(thermistor_tests)
+gtest_discover_tests(${TEST_NAME})
 
-target_include_directories(thermistor_tests SYSTEM PUBLIC
+target_include_directories(${TEST_NAME} SYSTEM PUBLIC
     ${CMAKE_SOURCE_DIR}/src
-    ${GTEST_INCLUDE_DIRS}
 )
 
-target_link_libraries(thermistor_tests
+target_link_libraries(${TEST_NAME}
     thermistor
     mathlib
-    ${GTEST_LIBRARIES}
+    GTest::gtest
 )
