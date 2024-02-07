@@ -24,6 +24,7 @@ Hardware/**/*.log
 Hardware/**/*.raw
 Hardware/**/*.net
 Hardware/**/*.op.raw
+Hardware/**/Gerbers.zip
 
 # Platform IO stuff
 .pio
