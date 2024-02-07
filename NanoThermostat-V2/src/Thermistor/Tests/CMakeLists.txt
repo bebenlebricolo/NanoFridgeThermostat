@@ -5,7 +5,7 @@ add_executable(thermistor_tests
 gtest_discover_tests(thermistor_tests)
 
 target_include_directories(thermistor_tests SYSTEM PUBLIC
-    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
     ${GTEST_INCLUDE_DIRS}
 )
 

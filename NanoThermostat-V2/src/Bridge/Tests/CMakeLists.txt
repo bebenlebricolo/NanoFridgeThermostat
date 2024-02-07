@@ -8,7 +8,7 @@ target_include_directories(bridge_test
     SYSTEM PUBLIC
         ${GTEST_INCLUDE_DIRS}
     PRIVATE
-        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(bridge_test

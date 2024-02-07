@@ -42,12 +42,12 @@ else()
 endif()
 
 # Add subdirectories
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Math
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Math
     ${CMAKE_CURRENT_BINARY_DIR}/Math
 )
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Thermistor
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Thermistor
     ${CMAKE_CURRENT_BINARY_DIR}/Thermistor
 )
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Bridge
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Bridge
     ${CMAKE_CURRENT_BINARY_DIR}/Bridge
 )

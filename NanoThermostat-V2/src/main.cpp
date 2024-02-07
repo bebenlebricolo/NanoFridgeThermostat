@@ -1,8 +1,9 @@
+#include <Arduino.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "thermistor/thermistor.h"
-#include "thermistor/thermistor_ntc_100k_3950K.h"
+#include "Thermistor/thermistor.h"
+#include "Thermistor/thermistor_ntc_100k_3950K.h"
 
 //#define F_CPU 16000000
 
