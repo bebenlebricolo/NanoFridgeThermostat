@@ -1,27 +1,29 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.20)
 project(NanoThermostat C CXX)
+
+# Allows to set the Multithreaded Debug Lib on Windows builds
+cmake_policy(SET CMP0091 NEW)
 
 include(GoogleTest)
 if(WIN32)
-    # Tells Visual Studio to use solution folders
-    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
     include(FetchContent)
+
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG        v1.14.0
     )
     FetchContent_MakeAvailable(googletest)
-    add_library(GTest::GTest INTERFACE IMPORTED)
-    target_link_libraries(GTest::GTest INTERFACE gtest_main)
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 else()
     find_package(GTest REQUIRED)
 endif()
+
 enable_testing()
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 17)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 if(UNIX)
