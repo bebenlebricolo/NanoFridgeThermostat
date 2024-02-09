@@ -28,7 +28,7 @@ It was essentially an Open-Loop system, running the compressor for 1 hour, and l
 This Open Loop process works fine but does not take into account the internal temperature of the fridge.
 Hence, the actual temperature was oscillating a lot between 2 or 3°C and 6 to 8°C, depending on how many times we would open it.
 
-More details on this revision can be found in the [NanoThermostat-V1](NanoThermostat-V1) folder.
+The first revision of this project can be found on tag V1.0.0
 
 # Nano Thermostat V2
 A newer revision of the thermostat is currently in the works and several small improvements will be provided :

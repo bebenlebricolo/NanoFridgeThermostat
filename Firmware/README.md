@@ -29,10 +29,24 @@ The idea is first to provide a very basic cooling support, with a simple on/off 
 
 # Safety features
 ### Automatic rerun protection
-As fridges' thermodynamic cycle has some constraints, it's not possible to restart the motor for a short period of time.
+As fridges' thermodynamic cycle has some constraints, it's not possible to restart the motor right after a run for a short period of time.
 My fridge is equipped with a fail-safe circuitry that breaks the circuit whenever the motor is stalled. A stalled motor draws much more current than expected in normal use, and it makes a thermal circuit breaker heat up, until the contact points separate ; the arm cools down and after some time springs back in normal position and closes the circuit again.
 
 I don't want to rely only on this safety feature, so I'll add a software timer in between motor start up so that I'm sure it's not started in a too short amount of time.
+
+### Safe boot up sequence
+When the system boots up, it'll wait for 5 seconds before starting normal operation.
+This will allow for the user to enter the "learn" mode (with a long press on a button).
+This mode will be used to reset internal memory and start characterising compressor motor again (monitoring current in "normal" operation).
+This characterisation of the motor will be later used to detect stalled motor conditions even if the system's power goes off for a while and returns back in a short time.
+Motor characterisation loop runs the compressor regardless of the frige's temperature in order to provide consistent results.
+
+Then, normal operation will take over.
+A long press on the same button allows to enter the learning mode again.
+If the board was already in cooling mode at this time, it'll simply keep running the motor until the end of the learn process and reverts back to operation without interfering with the current operation.
+
+
+
 
 ### Temperature trigger Hysteresis (No PID)
 I'll use an Hysteresis instead of a PID trigger for now and keep track of the ON/OFF cycles, avoiding to start the motor too often.
