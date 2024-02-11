@@ -6,7 +6,7 @@
 // overall aliasing (the bigger the number the lesser the aliasing effect, so that we loose less "steps")
 #define UINT16_ALIASING_FACTOR 100
 
-range_check_t check_value_range_uint16(uint16_t const * const value, range_uint16_t const * const range)
+interpolation_range_check_t interpolation_check_value_range_uint16(uint16_t const * const value, range_uint16_t const * const range)
 {
     bool positive_range = range->start < range->end;
     if(positive_range)
@@ -37,9 +37,9 @@ range_check_t check_value_range_uint16(uint16_t const * const value, range_uint1
     return RANGE_CHECK_INCLUDED;
 }
 
-int8_t linear_interpolate_uint16_to_int8(uint16_t const * const value, range_uint16_t const * const in, range_int8_t const * const out )
+int8_t interpolation_linear_uint16_to_int8(uint16_t const * const value, range_uint16_t const * const in, range_int8_t const * const out )
 {
-    range_check_t checked_value = check_value_range_uint16(value, in);
+    interpolation_range_check_t checked_value = interpolation_check_value_range_uint16(value, in);
     switch(checked_value)
     {
         case RANGE_CHECK_LEFT :

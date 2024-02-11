@@ -17,23 +17,23 @@ TEST_F(InterpolationFixture, check_value_range_positive_range)
     range.start = 19;
     range.end = 25;
 
-    range_check_t result = check_value_range_uint16(&value, &range);
+    interpolation_range_check_t result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_INCLUDED);
 
     value = range.start;
-    result = check_value_range_uint16(&value, &range);
+    result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_INCLUDED);
 
     value = range.end;
-    result = check_value_range_uint16(&value, &range);
+    result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_INCLUDED);
 
     value = range.start - 1;
-    result = check_value_range_uint16(&value, &range);
+    result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_LEFT);
 
     value = range.end + 1;
-    result = check_value_range_uint16(&value, &range);
+    result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_RIGHT);
 }
 
@@ -44,23 +44,23 @@ TEST_F(InterpolationFixture, check_value_range_negative_range)
     range.start = 25;
     range.end = 19;
 
-    range_check_t result = check_value_range_uint16(&value, &range);
+    interpolation_range_check_t result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_INCLUDED);
 
     value = range.start;
-    result = check_value_range_uint16(&value, &range);
+    result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_INCLUDED);
 
     value = range.end;
-    result = check_value_range_uint16(&value, &range);
+    result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_INCLUDED);
 
     value = range.start + 1;
-    result = check_value_range_uint16(&value, &range);
+    result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_LEFT);
 
     value = range.end - 1;
-    result = check_value_range_uint16(&value, &range);
+    result = interpolation_check_value_range_uint16(&value, &range);
     ASSERT_EQ(result, RANGE_CHECK_RIGHT);
 }
 
@@ -80,15 +80,15 @@ TEST_F(InterpolationFixture, linear_interpolate_uint16_to_int8_reversed_ranges)
         .end = -20
     };
 
-    int8_t result = linear_interpolate_uint16_to_int8(&value, &input, &output);
+    int8_t result = interpolation_linear_uint16_to_int8(&value, &input, &output);
     ASSERT_EQ(result, output.end);
 
     value = 1300;
-    result = linear_interpolate_uint16_to_int8(&value, &input, &output);
+    result = interpolation_linear_uint16_to_int8(&value, &input, &output);
     ASSERT_EQ(result, output.start);
 
     value = 1100;
-    result = linear_interpolate_uint16_to_int8(&value, &input, &output);
+    result = interpolation_linear_uint16_to_int8(&value, &input, &output);
     ASSERT_EQ(result, -22);
 }
 
@@ -108,19 +108,19 @@ TEST_F(InterpolationFixture, linear_interpolate_uint16_to_int8_same_signs_ranges
         .end = 10
     };
 
-    int8_t result = linear_interpolate_uint16_to_int8(&value, &input, &output);
+    int8_t result = interpolation_linear_uint16_to_int8(&value, &input, &output);
     ASSERT_EQ(result, 6);
 
     value = 1100;
-    result = linear_interpolate_uint16_to_int8(&value, &input, &output);
+    result = interpolation_linear_uint16_to_int8(&value, &input, &output);
     ASSERT_EQ(result, 7);
 
     value = 1150;
-    result = linear_interpolate_uint16_to_int8(&value, &input, &output);
+    result = interpolation_linear_uint16_to_int8(&value, &input, &output);
     ASSERT_EQ(result, 8);
 
     value = 1180;
-    result = linear_interpolate_uint16_to_int8(&value, &input, &output);
+    result = interpolation_linear_uint16_to_int8(&value, &input, &output);
     ASSERT_EQ(result, 9);
 }
 

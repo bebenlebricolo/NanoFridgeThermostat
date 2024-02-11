@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t const * const resistance, temp_res_t const ** low, temp_res_t const ** high)
+interpolation_range_check_t thermistor_frame_value(thermistor_data_t const * const thermistor, uint16_t const * const resistance, thermistor_temp_res_t const ** low, thermistor_temp_res_t const ** high)
 {
     // Clamp resistance to the lowest resistance found in the curve (aka highest temperature)
     if(*resistance < thermistor->data[thermistor->sample_count - 1].resistance)
@@ -51,15 +51,15 @@ range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t c
     return RANGE_CHECK_INCLUDED;
 }
 
-int8_t read_temperature(thermistor_data_t const * const thermistor, uint16_t const * const resistance)
+int8_t thermistor_read_temperature(thermistor_data_t const * const thermistor, uint16_t const * const resistance)
 {
     int8_t result = 0;
 
     // Find boundaries of resistance within the lookup table
-    temp_res_t const * low = NULL;
-    temp_res_t const * high = NULL;
+    thermistor_temp_res_t const * low = NULL;
+    thermistor_temp_res_t const * high = NULL;
 
-    range_check_t check = frame_value(thermistor, resistance, &low, &high);
+    interpolation_range_check_t check = thermistor_frame_value(thermistor, resistance, &low, &high);
     switch(check)
     {
         case RANGE_CHECK_LEFT :
@@ -90,6 +90,6 @@ int8_t read_temperature(thermistor_data_t const * const thermistor, uint16_t con
     };
 
     // Then linearly interpolate the value within the boundaries
-    result = linear_interpolate_uint16_to_int8(resistance, &res_range, &temp_range);
+    result = interpolation_linear_uint16_to_int8(resistance, &res_range, &temp_range);
     return result;
 }

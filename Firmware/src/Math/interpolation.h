@@ -19,7 +19,7 @@ typedef enum
     RANGE_CHECK_INCLUDED,   /**> Value is included within the range             */
     RANGE_CHECK_LEFT,       /**> Value is outside the range, before its start   */
     RANGE_CHECK_RIGHT       /**> Value is outside the range, past the end       */
-} range_check_t;
+} interpolation_range_check_t;
 
 
 /**
@@ -49,7 +49,7 @@ typedef struct
  * @param[in] output_range  : output value range
  * @return int8_t : input value mapped in the output range
 */
-int8_t linear_interpolate_uint16_to_int8(uint16_t const * const value,
+int8_t interpolation_linear_uint16_to_int8(uint16_t const * const value,
                                          range_uint16_t const * const input_range,
                                          range_int8_t const * const out_range );
 
@@ -62,7 +62,7 @@ int8_t linear_interpolate_uint16_to_int8(uint16_t const * const value,
  *      RANGE_CHECK_LEFT     : input value is NOT included within the two values range, and is on the left side of the range.
  *      RANGE_CHECK_RIGHT    : input value is NOT included within the two values range, and is on the right side of the range.
 */
-range_check_t check_value_range_uint16(uint16_t const * const value, range_uint16_t const * const range);
+interpolation_range_check_t interpolation_check_value_range_uint16(uint16_t const * const value, range_uint16_t const * const range);
 
 
 #ifdef __cplusplus

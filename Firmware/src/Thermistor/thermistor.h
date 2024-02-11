@@ -19,7 +19,7 @@ typedef enum
     RESUNIT_OHMS,       /**> Ohms               */
     RESUNIT_KILOOHMS,   /**> Kilo Ohms (10³)    */
     RESUNIT_MEGAOHMS    /**> Mega Ohms (10⁶)    */
-} resistance_unit_t;
+} thermistor_resistance_unit_t;
 
 /**
  * @brief Thermistor data base construct (maps a temperature with a resistance)
@@ -28,14 +28,14 @@ typedef struct
 {
     int8_t            temperature;  /**> Temperature data (ranging from -24°C usually to +25°C, 1 degree increment)                 */
     uint16_t          resistance;   /**> Resistance of the thermistor at the given temperature (unit given below, default is KOhms) */
-} temp_res_t;
+} thermistor_temp_res_t;
 
 /**
  * @brief Thermistor data for a given thermistor
 */
 typedef struct {
-    temp_res_t data[THERMISTOR_MAX_SAMPLES]; /**> (Ordered) array of thermistor data pairing                                             */
-    resistance_unit_t unit;                  /**> Resistance scale used                                                                  */
+    thermistor_temp_res_t data[THERMISTOR_MAX_SAMPLES]; /**> (Ordered) array of thermistor data pairing                                             */
+    thermistor_resistance_unit_t unit;                  /**> Resistance scale used                                                                  */
     uint8_t sample_count;                    /**> Gives the actual sample count used for a single curve (can be less than maximum limit) */
 } thermistor_data_t;
 
@@ -51,14 +51,14 @@ typedef struct {
  * TODO : Implement out-of-bounds data extrapolation if the need arise get past the input data curve.
  *
 */
-int8_t read_temperature(thermistor_data_t const * const thermistor, uint16_t const * const resistance);
+int8_t thermistor_read_temperature(thermistor_data_t const * const thermistor, uint16_t const * const resistance);
 
 /**
  * @brief finds the enclosing range that contains the input resistance within the thermistor data curve.
  *
  * This iterates over the points (assuming the curve is monotonic, typical for a NTC) of the dataset and tries to frame the input resistance
  * value within known bounds.
- * In case no interval (frame) can be found, both low and high temp_res_t pointers will point to one of the boundaries of the dataset (either min or max)
+ * In case no interval (frame) can be found, both low and high thermistor_temp_res_t pointers will point to one of the boundaries of the dataset (either min or max)
  * in order to indicate that the input resistance value is outside the exploitable range.
  *
  * For now, framing is performed using a linear search algorithm.
@@ -67,12 +67,12 @@ int8_t read_temperature(thermistor_data_t const * const thermistor, uint16_t con
  * @param[in]  resistance : NTC resistance as calculated from output voltage (resistor bridge with NTC)
  * @param[out] low        : point to the lower resistance data point (lower resistance, hence higher temperature)
  * @param[out] high       : point to the higher resistance data point (higher resistance, hence lower temperature)
- * @return range_check_t
+ * @return interpolation_range_check_t
  *      RANGE_CHECK_INCLUDED : input value is included within the two values range.
  *      RANGE_CHECK_LEFT     : input value is NOT included within the two values range, and is on the left side of the range.
  *      RANGE_CHECK_RIGHT    : input value is NOT included within the two values range, and is on the right side of the range.
 */
-range_check_t frame_value(thermistor_data_t const * const thermistor, uint16_t const * const resistance, temp_res_t const ** low, temp_res_t const ** high);
+interpolation_range_check_t thermistor_frame_value(thermistor_data_t const * const thermistor, uint16_t const * const resistance, thermistor_temp_res_t const ** low, thermistor_temp_res_t const ** high);
 
 #ifdef __cplusplus
 }

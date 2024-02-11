@@ -1,0 +1,16 @@
+BasedOnStyle: Visual Studio
+IndentWidth: 4
+
+BraceWrapping:
+  AfterEnum: true
+  AfterStruct: false
+  SplitEmptyFunction: false
+
+BreakBeforeBraces: Allman
+BreakBeforeBinaryOperators: All
+AlignEscapedNewlines: Right
+AlignTrailingComments: Always
+
+ColumnLimit : 100
+ReflowComments: true
+PenaltyBreakComment: 0
