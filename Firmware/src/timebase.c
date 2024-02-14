@@ -1,13 +1,20 @@
 #include "timebase.h"
 #include "Arduino.h"
 
+#define TCCR2B_PRESCALER_VALUE (1 << CS22) | (1 << CS20)
+
 // Used to count ticks 100 times a second
-volatile static uint8_t ticks = 0;
+volatile static uint16_t milliseconds = 0;
+
+static timebase_time_t internal_time = {
+    .seconds = 0,
+    .milliseconds = 0,
+};
 
 // Using TIMER2 CompA vector to increment the time variable
 ISR(TIMER2_COMPA_vect)
 {
-    ticks++;
+    milliseconds++;
 }
 
 /**
@@ -17,15 +24,15 @@ void timebase_init(void)
 {
     TCCR2A = (1 << WGM21); // CTC mode
 
-    // Prescaler of 1024
-    TCCR2B = (1 << CS22) | (1 << CS21) | (1 << CS20);
+    // Prescaler of 128
+    //TCCR2B = (1 << CS22) | (1 << CS21); //| (1 << CS20);
+    TCCR2B |= TCCR2B_PRESCALER_VALUE;
 
-    // 16MHz / 1024 -> 15625 HZ
-    // 15625 / 156 ~= 100,1 HZ -> closest to 100 Hz so we can just "count" up to 100 with a software counter and derive seconds out of this
-    // 15625 / 157 ~= 99,5 HZ
+    // 16MHz / 128 -> 125kHz HZ
+    // 125kHz/ 25 = 5 kHz
 
     // Will raise an interrupt around 100 times per second
-    OCR2A = 155;
+    OCR2A = 124;
 
     // Enable interrupts for this counter
     TIMSK2 |= (1 << OCIE2A);
@@ -34,20 +41,26 @@ void timebase_init(void)
 
 void timebase_reset(void)
 {
-    ticks = 0;
+    milliseconds = 0;
     TCNT2 = 0;
     TIMSK2 &= ~(1 << OCIE2A);
     TCCR2A &= ~(1 << WGM21);
-    TCCR2B &= ~((1 << CS22) | (1 << CS21) | (1 << CS20));
+    TCCR2B &= ~(TCCR2B_PRESCALER_VALUE);
     OCR2A = 0;
 }
 
 
-void timebase_get_time(uint32_t * const seconds)
+void timebase_process(void)
 {
-    if (ticks >= 100)
+    if (milliseconds >= 1000U)
     {
-        (*seconds)++; // Will overflow in UINT32_MAX seconds, around 136 years.
-        ticks = 0;
+        internal_time.seconds++;
+        milliseconds = 0;
     }
+    internal_time.milliseconds = milliseconds;
+}
+
+const timebase_time_t * timebase_get_time(void)
+{
+    return &internal_time;
 }
