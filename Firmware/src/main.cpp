@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <EEPROM.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -122,13 +121,13 @@ static persistent_config_t config = {
     .footer = PERMANENT_STORAGE_FOOTER,
 };
 
-static void read_buttons_events(button_event_t *const plus_button_event, button_event_t *const minus_button_event, const timebase_time_t * time);
+static void read_buttons_events(button_event_t *const plus_button_event, button_event_t *const minus_button_event, const timebase_time_t *time);
 
-static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, const timebase_time_t * time);
-static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const timebase_time_t * time);
+static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, const timebase_time_t *time);
+static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const timebase_time_t *time);
 static void set_motor_output(const uint8_t value);
-static void read_current_raw(uint16_t *const current_raw, const timebase_time_t *time);
-static void read_temperature_raw(uint16_t *const current_raw, const timebase_time_t *time);
+static void read_current(const timebase_time_t *time, uint16_t *current_ma);
+static void read_temperature(const timebase_time_t *time, int8_t *temperature);
 
 /**
  * @brief returns a fake RMS of the last 20 samples -> 20*50Hz = 1kHz.
@@ -185,33 +184,15 @@ void loop()
 
     time = timebase_get_time();
 
-    // Raw adc readings
-    uint16_t temp_reading_raw = 0;
-    uint16_t current_reading_raw = 0;
-
     // Transformed readings
     int8_t temperature = 0;
     uint16_t current_ma = 0;
 
-    read_current_raw(&current_reading_raw, time);
-    read_temperature_raw(&temp_reading_raw, time);
+    // Current is read at around 1kHz
+    read_current(time, &current_ma);
+    // Temperature is read once every 2 seconds
+    read_temperature(time, &temperature);
 
-    // Using the x10 to lower aliasing but still retain a more accurate
-    // millivolt reading Also, this remains right under the overflow : (5000 x 10 < UINT16_MAX)
-    uint16_t temp_reading_mv = (((vcc_mv * 10U) / 1024) * temp_reading_raw) / 10U;
-    uint16_t currend_reading_mv = (((vcc_mv * 10U) / 1024) * current_reading_raw) / 10U;
-
-    uint16_t ntc_resistance = bridge_get_lower_resistance(&upper_resistance, &temp_reading_mv, &vcc_mv);
-    temperature = thermistor_read_temperature(&thermistor_ntc_100k_3950K_data, &ntc_resistance);
-
-    // Usually we have a 1V for 1A CT with burden resistor couple.
-    // As we are reading millivolt -> current_reading_mv / 1000 gives us
-    // current_reading_volts <=> current_reading_amps and as we'd like to read
-    // milliamps we need to multiply current_reading_amps : both /1000 and *
-    // 1000 cancel each other out. However, we are using a dual stage amplifier
-    // to accommodate for lower voltages. So we need to take that gain into
-    // account for the final calculation :
-    current_ma = currend_reading_mv / AMP_GAIN;
     uint16_t current_rms = read_current_fake_rms(&current_ma);
 
     read_buttons_events(&app_mem.buttons.plus_event, &app_mem.buttons.minus_event, time);
@@ -252,7 +233,7 @@ void loop()
     // seconds,
 }
 
-static void read_buttons_events(button_event_t *const plus_button_event, button_event_t *const minus_button_event, const timebase_time_t * time )
+static void read_buttons_events(button_event_t *const plus_button_event, button_event_t *const minus_button_event, const timebase_time_t *time)
 {
     static button_local_mem_t plus_button_mem = {
         .current = LOW,
@@ -309,7 +290,7 @@ static uint16_t read_current_fake_rms(uint16_t const *const current_ma)
     return (magnitude * 10U) / 14U;
 }
 
-static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, const timebase_time_t * time)
+static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, const timebase_time_t *time)
 {
     // Wait for 5 minutes before exiting this state
     uint32_t elapsed_time = time->seconds - *start_time;
@@ -321,7 +302,7 @@ static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, c
     return APP_STATE_MOTOR_STALLED;
 }
 
-static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const timebase_time_t * time)
+static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const timebase_time_t *time)
 {
     // Only trigger this event once, at first detection of the button
     // HOLD event, not the subsequent ones.
@@ -361,28 +342,44 @@ void set_motor_output(const uint8_t value)
     digitalWrite(status_led_pin, LOW);
 }
 
-static void read_temperature_raw(uint16_t *const temp_reading_raw, const timebase_time_t *time)
+static void read_temperature(const timebase_time_t *time, int8_t *temperature)
 {
     static uint32_t last_check_s = 0;
 
     // Only trigger temperature reading if elapsed time is greater than 1 second.
-    if(time->seconds - last_check_s >= 2U)
+    if (time->seconds - last_check_s >= 2U)
     {
-        *temp_reading_raw = analogRead(temp_sensor_pin);
+        uint16_t temp_reading_raw = analogRead(temp_sensor_pin);
         last_check_s = time->seconds;
+
+        // Using the x10 to lower aliasing but still retain a more accurate
+        // millivolt reading Also, this remains right under the overflow : (5000 x 10 < UINT16_MAX)
+        uint16_t temp_reading_mv = (((vcc_mv * 10U) / 1024) * temp_reading_raw) / 10U;
+
+        uint16_t ntc_resistance = bridge_get_lower_resistance(&upper_resistance, &temp_reading_mv, &vcc_mv);
+        *temperature = thermistor_read_temperature(&thermistor_ntc_100k_3950K_data, &ntc_resistance);
     }
 }
 
-static void read_current_raw(uint16_t *const current_raw, const timebase_time_t *time)
+static void read_current(const timebase_time_t *time, uint16_t *current_ma)
 {
     static uint16_t last_check_ms = 0;
 
     // Only trigger temperature reading if elapsed time is greater than 1 second.
-    if(time->milliseconds - last_check_ms >= 2U)
+    if (time->milliseconds - last_check_ms >= 2U)
     {
-        *current_raw = analogRead(current_sensor_pin);
+        uint16_t current_raw = analogRead(current_sensor_pin);
         last_check_ms = time->milliseconds;
+
+        uint16_t currend_reading_mv = (((vcc_mv * 10U) / 1024) * current_raw) / 10U;
+
+        // Usually we have a 1V for 1A CT with burden resistor couple.
+        // As we are reading millivolt -> current_reading_mv / 1000 gives us
+        // current_reading_volts <=> current_reading_amps and as we'd like to read
+        // milliamps we need to multiply current_reading_amps : both /1000 and *
+        // 1000 cancel each other out. However, we are using a dual stage amplifier
+        // to accommodate for lower voltages. So we need to take that gain into
+        // account for the final calculation :
+        *current_ma = currend_reading_mv / AMP_GAIN;
     }
-
-
 }
