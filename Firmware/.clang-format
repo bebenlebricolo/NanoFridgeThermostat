@@ -1,5 +1,7 @@
-BasedOnStyle: Visual Studio
+BasedOnStyle: LLVM
 IndentWidth: 4
+UseTab : Never
+IndentCaseLabels: true
 
 BraceWrapping:
   AfterEnum: true
@@ -11,6 +13,6 @@ BreakBeforeBinaryOperators: All
 AlignEscapedNewlines: Right
 AlignTrailingComments: Always
 
-ColumnLimit : 100
+ColumnLimit : 150
 ReflowComments: true
 PenaltyBreakComment: 0

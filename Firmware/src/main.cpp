@@ -12,6 +12,10 @@
 
 // #define F_CPU 16000000
 
+// clang-format off
+// -> Clang has troubles treating multiline macros comments
+// https://github.com/llvm/llvm-project/issues/54399
+
 // Permanent storage header and footer are used to make sure EEPROM was already
 // used and is valid. These are default constant values which is really
 // unlikely we'll find in the EEPROM straight from factory. They will be used
@@ -19,22 +23,26 @@
 #define PERMANENT_STORAGE_HEADER 0xDE
 #define PERMANENT_STORAGE_FOOTER 0xAD
 
-#define AMP_GAIN 10U                        /**> Hardware 2 stage amplifier gain                                    */
+#define AMP_GAIN 10U                        /**> Hardware 2 stage amplifier gain                                        */
 
-#define SAMPLES_PER_SINE  20U               /**> How many samples we are using to depict a full sine wave.          */
-                                            /**> Appropriate values might range from 10 to 20                       */
+#define SAMPLES_PER_SINE  20U               /**> How many samples we are using to depict a full sine wave.              */
+                                            /**> Appropriate values might range from 10 to 20                           */
 
-#define STALLED_CURRENT_MULTIPLIER 5U       /**> Used to detect overcurrent conditions.                             */
-                                            /**> Inrush current is several times bigger than normal current         */
+#define STALLED_CURRENT_MULTIPLIER 5U       /**> Used to detect overcurrent conditions.                                 */
+                                            /**> Inrush current is several times bigger than normal current             */
 
-#define STEADY_MOTOR_RUNTIME 5U             /**> Minimum time to wait after motor is triggered to consider it in    */
-                                            /**> it's normal opeation mode                                          */
+#define STEADY_MOTOR_RUNTIME 5U             /**> Minimum time to wait after motor is triggered to consider it in        */
+                                            /**> it's normal operation mode                                             */
+
+#define STALLED_MOTOR_WAIT_MINUTES 5U       /**> How long we'll need to wait between motor starts when motor is stalled */
+
+// clang-format on
 
 // Pin mapping
-const uint8_t motor_control_pin = 2;  // D2
-const uint8_t status_led_pin = 3;     // D3
-const uint8_t minus_button_pin = 4;   // D4
-const uint8_t plus_button_pin = 5;    // D5
+const uint8_t motor_control_pin = 2; // D2
+const uint8_t status_led_pin = 3;    // D3
+const uint8_t minus_button_pin = 4;  // D4
+const uint8_t plus_button_pin = 5;   // D5
 
 const uint8_t temp_sensor_pin = A0;
 const uint8_t current_sensor_pin = A1;
@@ -55,6 +63,43 @@ typedef enum
                                  for   5 minutes before trying again    */
 } app_state_t;
 
+typedef struct
+{
+    app_state_t app_state; /**> Tracks application current state */
+    uint32_t time;         /**> Used to track the time in seconds */
+
+    /**
+     * @brief maps the start time conditions in a union
+     * (because we are only using one value at a time, they are mutually exclusive)
+     */
+    union
+    {
+        uint32_t stalled_cond_time; /**> Keeps track of the stalled condition start in time */
+        uint32_t motor_start_time;  /**> Keeps track of the time where motor was started    */
+    } tracking;
+
+    /**
+     * @brief Keeps track of button events (either Pressed, Released, or Hold)
+     */
+    struct
+    {
+        button_event_t plus_event; /**> Plus button event      */
+        // button_event_t prev_plus_event;
+
+        // We need to detect transistion from the PRESSED event to the HOLD event exactly once
+        button_event_t minus_event;      /**> Minus button event     */
+        button_event_t prev_minus_event; /**> Used to detect the change in button event (detecting from Pressed to Hold and from Hold to Release) */
+    } buttons;
+
+} app_working_mem_t;
+
+typedef struct
+{
+    int8_t temperature;
+    uint16_t current_ma;
+    uint16_t current_rms;
+} app_sensors_t;
+
 void set_motor_output(const uint8_t value)
 {
     digitalWrite(motor_control_pin, LOW);
@@ -62,14 +107,13 @@ void set_motor_output(const uint8_t value)
 }
 
 // Default configuration initialisation
-static persistent_config_t config = {.header = PERMANENT_STORAGE_HEADER,
-                                     .target_temperature = 4,
-                                     .current_threshold = 0,
-                                     .footer = PERMANENT_STORAGE_FOOTER};
+static persistent_config_t config
+    = {.header = PERMANENT_STORAGE_HEADER, .target_temperature = 4, .current_threshold = 0, .footer = PERMANENT_STORAGE_FOOTER};
 
-static void read_buttons_events(button_event_t *const plus_button_event,
-                                button_event_t *const minus_button_event,
-                                uint32_t const *const seconds);
+static void read_buttons_events(button_event_t *const plus_button_event, button_event_t *const minus_button_event, uint32_t const *const seconds);
+
+static app_state_t handle_motor_stalled_loop(uint32_t const *const seconds, uint32_t const *const start_time);
+static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms);
 
 /**
  * @brief returns a fake RMS of the last 20 samples -> 20*50Hz = 1kHz.
@@ -108,19 +152,20 @@ void setup()
 void loop()
 {
     // Keeps track of the previous time the system was toggled
-    static uint32_t seconds = 0;
-    static app_state_t app_state = APP_STATE_POST_BOOT_WAIT;
-    static button_event_t plus_button_event = BUTTON_EVENT_DEFAULT;
-
-    // We need to detect transistion from the PRESSED event to the HOLD event
-    // exactly once
-    static button_event_t prev_minus_button_event = BUTTON_EVENT_DEFAULT;
-    static button_event_t minus_button_event = BUTTON_EVENT_DEFAULT;
-
-    // Used to track time when we wait for the fridge's gases pressure to
-    // equalize
-    static uint32_t stalled_wait_start = 0;
-    static uint32_t motor_run_time = 0;
+    // clang-format off
+    static app_working_mem_t app_mem = {
+        .app_state = APP_STATE_POST_BOOT_WAIT,
+        .time = 0,
+        .tracking = {
+            .motor_start_time = 0
+        },
+        .buttons = {
+            .plus_event = BUTTON_EVENT_DEFAULT,
+            .minus_event = BUTTON_EVENT_DEFAULT,
+            .prev_minus_event = BUTTON_EVENT_DEFAULT,
+        }
+    };
+    // clang-format on
 
     // Raw adc readings
     uint16_t temp_reading_raw = 0;
@@ -130,18 +175,16 @@ void loop()
     int8_t temperature = 0;
     uint16_t current_ma = 0;
 
-    timebase_get_time(&seconds);
+    timebase_get_time(&app_mem.time);
     temp_reading_raw = analogRead(temp_sensor_pin);
     current_reading_raw = analogRead(current_sensor_pin);
 
     // Using the x10 to lower aliasing but still retain a more accurate
-    // millivolt reading Also, this remains right under the overflow : (5000 x
-    // 10 < UINT16_MAX)
+    // millivolt reading Also, this remains right under the overflow : (5000 x 10 < UINT16_MAX)
     uint16_t temp_reading_mv = (((vcc_mv * 10U) / 1024) * temp_reading_raw) / 10U;
     uint16_t currend_reading_mv = (((vcc_mv * 10U) / 1024) * current_reading_raw) / 10U;
 
-    uint16_t ntc_resistance = bridge_get_lower_resistance(&upper_resistance, &temp_reading_raw, &vcc_mv);
-
+    uint16_t ntc_resistance = bridge_get_lower_resistance(&upper_resistance, &temp_reading_mv, &vcc_mv);
     temperature = thermistor_read_temperature(&thermistor_ntc_100k_3950K_data, &ntc_resistance);
 
     // Usually we have a 1V for 1A CT with burden resistor couple.
@@ -149,24 +192,18 @@ void loop()
     // current_reading_volts <=> current_reading_amps and as we'd like to read
     // milliamps we need to multiply current_reading_amps : both /1000 and *
     // 1000 cancel each other out. However, we are using a dual stage amplifier
-    // to accomodate for lower voltages. So we need to take that gain into
+    // to accommodate for lower voltages. So we need to take that gain into
     // account for the final calculation :
     current_ma = currend_reading_mv / AMP_GAIN;
     uint16_t current_rms = read_current_fake_rms(&current_ma);
 
-    read_buttons_events(&plus_button_event, &minus_button_event, &seconds);
+    read_buttons_events(&app_mem.buttons.plus_event, &app_mem.buttons.minus_event, &app_mem.time);
 
-    switch (app_state)
+    switch (app_mem.app_state)
     {
         case APP_STATE_MOTOR_STALLED:
         {
-            // Wait for 5 minutes before exiting this state
-            uint32_t elapsed_time = seconds - stalled_wait_start;
-            if (elapsed_time >= 5U * 60U)
-            {
-                // Revert to normal operation mode
-                app_state = APP_STATE_NORMAL;
-            }
+            app_mem.app_state = handle_motor_stalled_loop(&app_mem.time, &app_mem.tracking.stalled_cond_time);
             break;
         }
 
@@ -187,42 +224,12 @@ void loop()
         case APP_STATE_NORMAL:
         default:
         {
-            // Only trigger this event once, at first detection of the button
-            // HOLD event, not the subsequent ones.
-            if ((BUTTON_EVENT_HOLD == minus_button_event)
-                && (prev_minus_button_event != minus_button_event))
-            {
-                // Reset memory back to default (starts a new "Learning" mode)
-                config.current_threshold = 0;
-                persistent_mem_write_config(&config);
-            }
-
-            // Just learnt new "normal" motor behavior !
-            // Save it to persistent memory
-            if ((config.current_threshold == 0)
-             && (motor_run_time > STEADY_MOTOR_RUNTIME))
-            {
-                config.current_threshold = current_rms;
-                persistent_mem_write_config(&config);
-            }
-
-            // Detected stalled motor, stop trying to trigger the compressor for now
-            if ((config.current_threshold > 0)
-             && (current_rms > (STALLED_CURRENT_MULTIPLIER * config.current_threshold)))
-            {
-                app_state = APP_STATE_MOTOR_STALLED;
-                set_motor_output(LOW);
-                stalled_wait_start = seconds;
-
-                motor_run_time = 0;
-                // TODO : blink the LED to indicate we've entered this mode
-            }
-
+            handle_normal_operation_loop(&app_mem, &current_rms);
             break;
         }
     }
 
-    prev_minus_button_event = minus_button_event;
+    app_mem.buttons.prev_minus_event = app_mem.buttons.minus_event;
     // Read temp
     // Process (filter) temp reading -> hysteresis
     // Read current
@@ -241,9 +248,7 @@ void loop()
     // seconds,
 }
 
-static void read_buttons_events(button_event_t *const plus_button_event,
-                                button_event_t *const minus_button_event,
-                                uint32_t const *const seconds)
+static void read_buttons_events(button_event_t *const plus_button_event, button_event_t *const minus_button_event, uint32_t const *const seconds)
 {
     static button_local_mem_t plus_button_mem = {
         .current = LOW,
@@ -296,6 +301,52 @@ static uint16_t read_current_fake_rms(uint16_t const *const current_ma)
     uint16_t peak_to_peak = max - min;
     uint16_t magnitude = peak_to_peak / 2U;
 
-    // Removing alias again on sqrt(2) with small error margin
+    // Removing alias again on sqrt(2) with small(er) error margin
     return (magnitude * 10U) / 14U;
+}
+
+static app_state_t handle_motor_stalled_loop(uint32_t const *const seconds, uint32_t const *const start_time)
+{
+    // Wait for 5 minutes before exiting this state
+    uint32_t elapsed_time = seconds - start_time;
+    if (elapsed_time >= 5U * 60U)
+    {
+        // Revert to normal operation mode
+        return APP_STATE_NORMAL;
+    }
+    return APP_STATE_MOTOR_STALLED;
+}
+
+static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms)
+{
+    // Only trigger this event once, at first detection of the button
+    // HOLD event, not the subsequent ones.
+    // clang-format off
+    if ((BUTTON_EVENT_HOLD == app_mem->buttons.minus_event)
+    && (app_mem->buttons.prev_minus_event != app_mem->buttons.minus_event))
+    // clang-format on
+    {
+        // Reset memory back to default (starts a new "Learning" mode)
+        config.current_threshold = 0;
+        persistent_mem_write_config(&config);
+    }
+
+    // Just learnt new "normal" motor behavior ! Save it to persistent memory
+    bool motor_run_long_enough = (app_mem->time - app_mem->tracking.motor_start_time) > STEADY_MOTOR_RUNTIME;
+    if ((config.current_threshold == 0) && (motor_run_long_enough))
+    {
+        config.current_threshold = *current_rms;
+        persistent_mem_write_config(&config);
+    }
+
+    // Detected stalled motor, stop trying to trigger the compressor for now
+    bool overcurrent_detected = *current_rms > (STALLED_CURRENT_MULTIPLIER * config.current_threshold);
+    if ((config.current_threshold > 0) && (overcurrent_detected))
+    {
+        app_mem->app_state = APP_STATE_MOTOR_STALLED;
+        set_motor_output(LOW);
+        app_mem->tracking.stalled_cond_time = app_mem->time;
+
+        // TODO : blink the LED to indicate we've entered this mode
+    }
 }

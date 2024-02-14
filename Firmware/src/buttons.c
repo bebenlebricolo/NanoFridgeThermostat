@@ -1,7 +1,7 @@
 #include "buttons.h"
 
 #define LOW 0U
-#define HIGH 0xFF
+#define HIGH 1U
 
 void button_local_mem_default(button_local_mem_t *button)
 {

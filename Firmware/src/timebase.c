@@ -3,7 +3,6 @@
 
 // Used to count ticks 100 times a second
 volatile static uint8_t ticks = 0;
-static uint32_t seconds = 0;
 
 // Using TIMER2 CompA vector to increment the time variable
 ISR(TIMER2_COMPA_vect)
