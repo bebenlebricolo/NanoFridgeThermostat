@@ -85,11 +85,11 @@ typedef struct
      */
     struct
     {
-        button_event_t plus_event; /**> Plus button event      */
-        // button_event_t prev_plus_event;
+        button_event_t plus_event;      /**> Plus button event                                                                                   */
+        button_event_t prev_plus_event; /**> Used to detect the change in button event (detecting from Pressed to Hold and from Hold to Release) */
 
         // We need to detect transistion from the PRESSED event to the HOLD event exactly once
-        button_event_t minus_event;      /**> Minus button event     */
+        button_event_t minus_event;      /**> Minus button event                                                                                  */
         button_event_t prev_minus_event; /**> Used to detect the change in button event (detecting from Pressed to Hold and from Hold to Release) */
     } buttons;
 
@@ -168,7 +168,6 @@ void loop()
     static const timebase_time_t *time = NULL;
 
     // Keeps track of the previous time the system was toggled
-    // clang-format off
     static app_working_mem_t app_mem = {
         .app_state = APP_STATE_POST_BOOT_WAIT,
         .tracking = {
@@ -176,13 +175,15 @@ void loop()
         },
         .buttons = {
             .plus_event = BUTTON_EVENT_DEFAULT,
+            .prev_plus_event = BUTTON_EVENT_DEFAULT,
             .minus_event = BUTTON_EVENT_DEFAULT,
             .prev_minus_event = BUTTON_EVENT_DEFAULT,
-        }
+        }, // Trailing comma is used to work around clang-format issues with struct fields initialization formatting
     };
-    // clang-format on
 
     time = timebase_get_time();
+
+    bool config_changed = false;
 
     // Transformed readings
     int8_t temperature = 0;
@@ -195,7 +196,40 @@ void loop()
 
     uint16_t current_rms = read_current_fake_rms(&current_ma);
 
+    // Process button events.
+    // Used to trigger
     read_buttons_events(&app_mem.buttons.plus_event, &app_mem.buttons.minus_event, time);
+
+    // User pressed and release the + button.
+    // Raise temp set point by one degree
+    if(app_mem.buttons.plus_event == BUTTON_EVENT_RELEASED
+    && app_mem.buttons.prev_plus_event != app_mem.buttons.plus_event)
+    {
+        config.target_temperature++;
+
+        // Clamp max temperature to max of NTC curve
+        config.target_temperature %= thermistor_ntc_100k_3950K_data.data[thermistor_ntc_100k_3950K_data.sample_count - 1U].temperature;
+        config_changed = true;
+    }
+
+    // User pressed and release the - button.
+    // Reduce temp set point by one degree
+    if(app_mem.buttons.minus_event == BUTTON_EVENT_RELEASED
+    && app_mem.buttons.prev_minus_event != app_mem.buttons.minus_event)
+    {
+        config.target_temperature--;
+
+        // Clamp max temperature to min of NTC curve
+        config.target_temperature %= thermistor_ntc_100k_3950K_data.data[0U].temperature;
+        config_changed = true;
+    }
+
+    // Only update persistent configuration if it has changed (reduces the amount of writes)
+    if(config_changed)
+    {
+        persistent_mem_write_config(&config);
+    }
+
 
     switch (app_mem.app_state)
     {
@@ -214,7 +248,10 @@ void loop()
         }
     }
 
+    // Update previous buttons states
     app_mem.buttons.prev_minus_event = app_mem.buttons.minus_event;
+    app_mem.buttons.prev_plus_event = app_mem.buttons.plus_event;
+
     // Read temp
     // Process (filter) temp reading -> hysteresis
     // Read current
