@@ -181,6 +181,8 @@ void loop()
         }, // Trailing comma is used to work around clang-format issues with struct fields initialization formatting
     };
 
+    // Very important to process the current time as fast as we can (polling mode)
+    timebase_process();
     time = timebase_get_time();
 
     bool config_changed = false;
