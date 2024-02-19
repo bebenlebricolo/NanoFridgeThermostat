@@ -42,6 +42,9 @@
 // Compiles down to constant anyway !
 #define CURRENT_SENSOR_CHECK_PERIOD_MS uint8_t(1000 / CURRENT_SENSOR_CHECK_RATE)        /**> Current sensor check time period in milliseconds (between 2 sensor reads) */
 
+#define TEMP_HYSTERESIS_HIGH 2U     /**> Upper limit of the hysteresis window. If temp gets higher than 2°C above the target temp, we start the compressor  */
+#define TEMP_HYSTERESIS_LOW 2U      /**> Lower limit of the hysteresis window. If temp gets lower than 2°C below the target temp, we stop the compressor    */
+
 // clang-format on
 
 // Pin mapping
@@ -85,12 +88,12 @@ typedef struct
      */
     struct
     {
-        button_event_t plus_event;      /**> Plus button event                                                                                   */
-        button_event_t prev_plus_event; /**> Used to detect the change in button event (detecting from Pressed to Hold and from Hold to Release) */
+        button_state_t plus_event;      /**> Plus button event                                                                                   */
+        button_state_t prev_plus_event; /**> Used to detect the change in button event (detecting from Pressed to Hold and from Hold to Release) */
 
         // We need to detect transistion from the PRESSED event to the HOLD event exactly once
-        button_event_t minus_event;      /**> Minus button event                                                                                  */
-        button_event_t prev_minus_event; /**> Used to detect the change in button event (detecting from Pressed to Hold and from Hold to Release) */
+        button_state_t minus_event;      /**> Minus button event                                                                                  */
+        button_state_t prev_minus_event; /**> Used to detect the change in button event (detecting from Pressed to Hold and from Hold to Release) */
     } buttons;
 
 } app_working_mem_t;
@@ -121,11 +124,13 @@ static persistent_config_t config = {
     .footer = PERMANENT_STORAGE_FOOTER,
 };
 
-static void read_buttons_events(button_event_t *const plus_button_event, button_event_t *const minus_button_event, const timebase_time_t *time);
+static void read_buttons_events(button_state_t *const plus_button_event, button_state_t *const minus_button_event, const timebase_time_t *time);
 
 static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, const timebase_time_t *time);
-static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const timebase_time_t *time);
+static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const int8_t temperature,
+                                         const timebase_time_t *time);
 static void set_motor_output(const uint8_t value);
+static bool is_motor_started(void);
 static void read_current(const timebase_time_t *time, uint16_t *current_ma);
 static void read_temperature(const timebase_time_t *time, int8_t *temperature);
 
@@ -174,10 +179,10 @@ void loop()
             .motor_start_time = 0
         },
         .buttons = {
-            .plus_event = BUTTON_EVENT_DEFAULT,
-            .prev_plus_event = BUTTON_EVENT_DEFAULT,
-            .minus_event = BUTTON_EVENT_DEFAULT,
-            .prev_minus_event = BUTTON_EVENT_DEFAULT,
+            .plus_event = BUTTON_STATE_DEFAULT,
+            .prev_plus_event = BUTTON_STATE_DEFAULT,
+            .minus_event = BUTTON_STATE_DEFAULT,
+            .prev_minus_event = BUTTON_STATE_DEFAULT,
         }, // Trailing comma is used to work around clang-format issues with struct fields initialization formatting
     };
 
@@ -204,8 +209,7 @@ void loop()
 
     // User pressed and release the + button.
     // Raise temp set point by one degree
-    if(app_mem.buttons.plus_event == BUTTON_EVENT_RELEASED
-    && app_mem.buttons.prev_plus_event != app_mem.buttons.plus_event)
+    if (app_mem.buttons.plus_event == BUTTON_STATE_RELEASED && app_mem.buttons.prev_plus_event != app_mem.buttons.plus_event)
     {
         config.target_temperature++;
 
@@ -216,8 +220,7 @@ void loop()
 
     // User pressed and release the - button.
     // Reduce temp set point by one degree
-    if(app_mem.buttons.minus_event == BUTTON_EVENT_RELEASED
-    && app_mem.buttons.prev_minus_event != app_mem.buttons.minus_event)
+    if (app_mem.buttons.minus_event == BUTTON_STATE_RELEASED && app_mem.buttons.prev_minus_event != app_mem.buttons.minus_event)
     {
         config.target_temperature--;
 
@@ -227,11 +230,10 @@ void loop()
     }
 
     // Only update persistent configuration if it has changed (reduces the amount of writes)
-    if(config_changed)
+    if (config_changed)
     {
         persistent_mem_write_config(&config);
     }
-
 
     switch (app_mem.app_state)
     {
@@ -245,7 +247,7 @@ void loop()
         case APP_STATE_NORMAL:
         default:
         {
-            handle_normal_operation_loop(&app_mem, &current_rms, time);
+            handle_normal_operation_loop(&app_mem, &current_rms, temperature, time);
             break;
         }
     }
@@ -272,19 +274,19 @@ void loop()
     // seconds,
 }
 
-static void read_buttons_events(button_event_t *const plus_button_event, button_event_t *const minus_button_event, const timebase_time_t *time)
+static void read_buttons_events(button_state_t *const plus_button_event, button_state_t *const minus_button_event, const timebase_time_t *time)
 {
     static button_local_mem_t plus_button_mem = {
         .current = LOW,
         .previous = LOW,
         .pressed = 0,
-        .event = BUTTON_EVENT_DEFAULT,
+        .event = BUTTON_STATE_DEFAULT,
     };
     static button_local_mem_t minus_button_mem = {
         .current = LOW,
         .previous = LOW,
         .pressed = 0,
-        .event = BUTTON_EVENT_DEFAULT,
+        .event = BUTTON_STATE_DEFAULT,
     };
 
     plus_button_mem.current = digitalRead(plus_button_pin);
@@ -341,12 +343,13 @@ static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, c
     return APP_STATE_MOTOR_STALLED;
 }
 
-static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const timebase_time_t *time)
+static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const int8_t temperature,
+                                         const timebase_time_t *time)
 {
     // Only trigger this event once, at first detection of the button
     // HOLD event, not the subsequent ones.
     // clang-format off
-    if ((BUTTON_EVENT_HOLD == app_mem->buttons.minus_event)
+    if ((BUTTON_STATE_HOLD == app_mem->buttons.minus_event)
     && (app_mem->buttons.prev_minus_event != app_mem->buttons.minus_event))
     // clang-format on
     {
@@ -372,8 +375,24 @@ static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint1
         app_mem->tracking.stalled_cond_time = time->seconds;
 
         // TODO : blink the LED to indicate we've entered this mode
+        return;
+    }
+
+    // Simple hysteresis to control the compressor based on a target temperature
+    if (!is_motor_started() && (temperature > (int8_t)(config.target_temperature + TEMP_HYSTERESIS_HIGH)))
+    {
+        // Start the compressor
+        set_motor_output(HIGH);
+    }
+    else if (is_motor_started() && (temperature < (int8_t)(config.target_temperature - TEMP_HYSTERESIS_LOW)))
+    {
+        // Stop the compressor
+        set_motor_output(LOW);
+        app_mem->tracking.motor_start_time = time->seconds;
     }
 }
+
+static bool is_motor_started(void) { return digitalRead(motor_control_pin) == HIGH; }
 
 void set_motor_output(const uint8_t value)
 {

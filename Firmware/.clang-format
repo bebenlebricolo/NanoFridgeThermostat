@@ -16,3 +16,7 @@ AlignTrailingComments: Always
 ColumnLimit : 150
 ReflowComments: true
 PenaltyBreakComment: 0
+#AllowAllParametersOfDeclarationOnNextLine: false
+#BinPackParameters : true
+BinPackArguments: true
+AlignAfterOpenBracket: Align

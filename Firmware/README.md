@@ -4,6 +4,7 @@
 - [Hardware specs (first iteration)](#hardware-specs-first-iteration)
 - [Safety features](#safety-features)
     - [Automatic rerun protection](#automatic-rerun-protection)
+    - [Safe boot up sequence](#safe-boot-up-sequence)
     - [Temperature trigger Hysteresis (No PID)](#temperature-trigger-hysteresis-no-pid)
 - [Roadmap](#roadmap)
   - [V2.0](#v20)
@@ -44,8 +45,6 @@ Motor characterisation loop runs the compressor regardless of the frige's temper
 Then, normal operation will take over.
 A long press on the same button allows to enter the learning mode again.
 If the board was already in cooling mode at this time, it'll simply keep running the motor until the end of the learn process and reverts back to operation without interfering with the current operation.
-
-
 
 
 ### Temperature trigger Hysteresis (No PID)
