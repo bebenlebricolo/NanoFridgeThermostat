@@ -44,12 +44,13 @@ else()
 endif()
 
 # Add subdirectories
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Math
-    ${CMAKE_CURRENT_BINARY_DIR}/Math
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Core
+    ${CMAKE_CURRENT_BINARY_DIR}/Core
 )
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Thermistor
-    ${CMAKE_CURRENT_BINARY_DIR}/Thermistor
-)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Bridge
-    ${CMAKE_CURRENT_BINARY_DIR}/Bridge
-)
+
+# Does not compile with the same architecture -> needs to use the AVR toolchain
+if(0)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Hal
+        ${CMAKE_CURRENT_BINARY_DIR}/Hal
+    )
+endif()

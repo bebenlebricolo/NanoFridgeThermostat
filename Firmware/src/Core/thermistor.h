@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include "Math/interpolation.h"
+#include "interpolation.h"
 
 #define THERMISTOR_MAX_SAMPLES 50U
 

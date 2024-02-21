@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "Math/interpolation.h"
+#include "interpolation.h"
 
 class InterpolationFixture : public ::testing::Test
 {

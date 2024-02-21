@@ -2,12 +2,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "Bridge/bridge.h"
-#include "Thermistor/thermistor.h"
-#include "Thermistor/thermistor_ntc_100k_3950K.h"
-#include "buttons.h"
-#include "persistent_memory.h"
-#include "timebase.h"
+#include "Core/bridge.h"
+#include "Core/thermistor.h"
+#include "Core/thermistor_ntc_100k_3950K.h"
+#include "Core/buttons.h"
+#include "Core/current.h"
+
+#include "Hal/persistent_memory.h"
+#include "Hal/timebase.h"
 
 // #define F_CPU 16000000
 
@@ -430,14 +432,6 @@ static void read_current(const timebase_time_t *time, uint16_t *current_ma)
         last_check_ms = time->milliseconds;
 
         uint16_t currend_reading_mv = (((vcc_mv * 10U) / 1024) * current_raw) / 10U;
-
-        // Usually we have a 1V for 1A CT with burden resistor couple.
-        // As we are reading millivolt -> current_reading_mv / 1000 gives us
-        // current_reading_volts <=> current_reading_amps and as we'd like to read
-        // milliamps we need to multiply current_reading_amps : both /1000 and *
-        // 1000 cancel each other out. However, we are using a dual stage amplifier
-        // to accommodate for lower voltages. So we need to take that gain into
-        // account for the final calculation :
-        *current_ma = currend_reading_mv / AMP_GAIN;
+        current_from_voltage(&currend_reading_mv, current_ma);
     }
 }
