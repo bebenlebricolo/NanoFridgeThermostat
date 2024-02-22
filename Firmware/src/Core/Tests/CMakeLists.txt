@@ -1,4 +1,3 @@
-enable_testing()
 ######################################################################
 ############################ Bridge tests ############################
 ######################################################################
@@ -19,6 +18,10 @@ target_link_libraries(bridge_tests
     GTest::gtest
 )
 
+set_target_properties(bridge_tests
+    PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/tests"
+)
 
 
 ######################################################################
@@ -41,6 +44,11 @@ target_link_libraries(interpolation_tests
     GTest::gtest
 )
 
+set_target_properties(interpolation_tests
+    PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/tests"
+)
+
 ######################################################################
 ######################### Thermistor tests ###########################
 ######################################################################
@@ -61,7 +69,32 @@ target_link_libraries(thermistor_tests
     GTest::gtest
 )
 
-set_target_properties(bridge_tests interpolation_tests thermistor_tests
+set_target_properties(thermistor_tests
+    PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/tests"
+)
+
+######################################################################
+######################### Current tests ###########################
+######################################################################
+
+add_executable(current_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/current_tests.cpp
+)
+
+gtest_discover_tests(current_tests)
+
+target_include_directories(current_tests
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(current_tests
+    core
+    GTest::gtest
+)
+
+set_target_properties(current_tests
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/tests"
 )
