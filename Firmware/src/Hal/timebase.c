@@ -6,7 +6,7 @@
 // Used to count ticks 100 times a second
 volatile static uint16_t milliseconds = 0;
 
-static timebase_time_t internal_time = {
+static mcu_time_t internal_time = {
     .seconds = 0,
     .milliseconds = 0,
 };
@@ -60,7 +60,7 @@ void timebase_process(void)
     internal_time.milliseconds = milliseconds;
 }
 
-const timebase_time_t * timebase_get_time(void)
+const mcu_time_t * timebase_get_time(void)
 {
     return &internal_time;
 }

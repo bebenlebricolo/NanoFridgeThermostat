@@ -7,6 +7,7 @@
 #include "Core/thermistor_ntc_100k_3950K.h"
 #include "Core/buttons.h"
 #include "Core/current.h"
+#include "Core/mcu_time.h"
 
 #include "Hal/persistent_memory.h"
 #include "Hal/timebase.h"
@@ -116,7 +117,7 @@ typedef enum
     LED_BLINK_MODE_LEARNING,      /**> Blinks gently with fade-in and fade-out grades to indicate the learning process  */
     LED_BLINK_MODE_ACCEPT,        /**> Blinks rapidly 3 times before turning off                                        */
     LED_BLINK_MODE_STOP           /**> LED doesn't blink at all                                                         */
-} led_blink_mode_t;
+} led_blink_pattern_t;
 
 // Default configuration initialisation
 static persistent_config_t config = {
@@ -126,15 +127,15 @@ static persistent_config_t config = {
     .footer = PERMANENT_STORAGE_FOOTER,
 };
 
-static void read_buttons_events(button_state_t *const plus_button_event, button_state_t *const minus_button_event, const timebase_time_t *time);
+static void read_buttons_events(button_state_t *const plus_button_event, button_state_t *const minus_button_event, const mcu_time_t *time);
 
-static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, const timebase_time_t *time);
+static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, const mcu_time_t *time);
 static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const int8_t temperature,
-                                         const timebase_time_t *time);
+                                         const mcu_time_t *time);
 static void set_motor_output(const uint8_t value);
 static bool is_motor_started(void);
-static void read_current(const timebase_time_t *time, uint16_t *current_ma);
-static void read_temperature(const timebase_time_t *time, int8_t *temperature);
+static void read_current(const mcu_time_t *time, uint16_t *current_ma);
+static void read_temperature(const mcu_time_t *time, int8_t *temperature);
 
 /**
  * @brief returns a fake RMS of the last 20 samples -> 20*50Hz = 1kHz.
@@ -172,7 +173,7 @@ void setup()
 
 void loop()
 {
-    static const timebase_time_t *time = NULL;
+    static const mcu_time_t *time = NULL;
 
     // Keeps track of the previous time the system was toggled
     static app_working_mem_t app_mem = {
@@ -276,7 +277,7 @@ void loop()
     // seconds,
 }
 
-static void read_buttons_events(button_state_t *const plus_button_event, button_state_t *const minus_button_event, const timebase_time_t *time)
+static void read_buttons_events(button_state_t *const plus_button_event, button_state_t *const minus_button_event, const mcu_time_t *time)
 {
     static button_local_mem_t plus_button_mem = {
         .current = LOW,
@@ -333,7 +334,7 @@ static uint16_t read_current_fake_rms(uint16_t const *const current_ma)
     return (magnitude * 10U) / 14U;
 }
 
-static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, const timebase_time_t *time)
+static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, const mcu_time_t *time)
 {
     // Wait for 5 minutes before exiting this state
     uint32_t elapsed_time = time->seconds - *start_time;
@@ -346,7 +347,7 @@ static app_state_t handle_motor_stalled_loop(uint32_t const *const start_time, c
 }
 
 static void handle_normal_operation_loop(app_working_mem_t *const app_mem, uint16_t const *const current_rms, const int8_t temperature,
-                                         const timebase_time_t *time)
+                                         const mcu_time_t *time)
 {
     // Only trigger this event once, at first detection of the button
     // HOLD event, not the subsequent ones.
@@ -402,7 +403,7 @@ void set_motor_output(const uint8_t value)
     digitalWrite(status_led_pin, LOW);
 }
 
-static void read_temperature(const timebase_time_t *time, int8_t *temperature)
+static void read_temperature(const mcu_time_t *time, int8_t *temperature)
 {
     static uint32_t last_check_s = 0;
 
@@ -421,7 +422,7 @@ static void read_temperature(const timebase_time_t *time, int8_t *temperature)
     }
 }
 
-static void read_current(const timebase_time_t *time, uint16_t *current_ma)
+static void read_current(const mcu_time_t *time, uint16_t *current_ma)
 {
     static uint16_t last_check_ms = 0;
 
