@@ -5,10 +5,17 @@ IndentCaseLabels: true
 
 BraceWrapping:
   AfterEnum: true
-  AfterStruct: false
+  AfterStruct: true
+  AfterFunction : true
+  AfterNamespace : true
+  AfterClass : true
+  AfterUnion : true
+  AfterElse : true
+  AfterExternBlock: false
+  AfterControlStatement: Always
   SplitEmptyFunction: false
 
-BreakBeforeBraces: Allman
+BreakBeforeBraces: Custom
 BreakBeforeBinaryOperators: All
 AlignEscapedNewlines: Right
 AlignTrailingComments: Always
