@@ -10,9 +10,20 @@ extern "C" {
 
 #define MAX_LED_COUNT 1
 
-#define LED_BLINK_BREATHING_PERIOD_S 4U
+// clang-format off
+#define LED_BLINK_BREATHING_PERIOD_S 4U                                                                     /**> LED breathing cycle period                     */
+#define LED_BLINK_BREATHING_HALF_P (LED_BLINK_BREATHING_PERIOD_S / 2U)                                      /**> LED breathing half period                      */
+#define LED_BLINK_BREATHING_FREQ_H 25                                                                       /**> LED breathing base update frequency (Hertz)    */
+#define LED_BLINK_BREATHING_UPDATE_MS (1000 / LED_BLINK_BREATHING_FREQ_H)                                   /**> LED breathing base update period (millisecond) */
+#define LED_BLINK_BREATHING_HALF_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_HALF_P)      /**> Number of events (steps) for half a period     */
+#define LED_BLINK_BREATHING_FULL_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_PERIOD_S)    /**> Number of events (steps) for the full period   */
+#define LED_BLINK_BREATHING_DUTY_CYCLE_INC                                                                                                                              \
+    (100 / (LED_BLINK_BREATHING_HALF_P * LED_BLINK_BREATHING_FREQ_H))                                       /**> LED breathing duty cycle increment             */
 
-#define LED_BLINK_WARNING_PERIOD_S 2U
+#define LED_BLINK_WARNING_PERIOD_S 2U                              /**> LED warning cycle period   */
+#define LED_BLINK_WARNING_HALF_P (LED_BLINK_WARNING_PERIOD_S / 2U) /**> LED warning half period    */
+
+// clang-format on
 
 typedef enum
 {
