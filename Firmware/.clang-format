@@ -14,7 +14,9 @@ BraceWrapping:
   BeforeElse: true
   AfterExternBlock: false
   AfterControlStatement: Always
-  SplitEmptyFunction: false
+  SplitEmptyFunction: true
+
+AllowShortFunctionsOnASingleLine: Empty
 
 BreakBeforeBraces: Custom
 BreakBeforeBinaryOperators: All
