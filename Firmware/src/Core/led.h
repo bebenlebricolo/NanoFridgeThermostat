@@ -38,20 +38,19 @@ typedef enum
  */
 typedef struct
 {
-    volatile uint8_t *port;      /**> Specifies the LED IO port (needs to be a pointer to the PORT[ABCD]) */
-    uint8_t pin_id;              /**> Specifies the LED IO id (0 to 7)                                    */
-    led_blink_pattern_t pattern; /**> Blink pattern */
-} led_static_config_t;
+    volatile uint8_t *port; /**> Specifies the LED IO port (needs to be a pointer to the PORT[ABCD]) */
+    uint8_t pin;            /**> Specifies the LED IO id (0 to 7)                                    */
+} led_io_t;
 
 /**
  * @brief initializes the config parameter to default values.
  */
-void led_static_config_default(led_static_config_t *config);
+void led_static_config_default(led_io_t *config);
 
 /**
  * @brief configures the LED driver with static configuration.
  */
-void led_init(const led_static_config_t *config, const uint8_t length);
+void led_init(const led_io_t *config, const uint8_t length);
 
 /**
  * @brief processes events on all registered LEDs.

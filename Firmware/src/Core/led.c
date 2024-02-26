@@ -6,19 +6,25 @@
 
 typedef struct
 {
-    bool configured;            /**> Used to know if this specific LED construct is used or not */
-    led_static_config_t config; /**> Static led config                                          */
-    mcu_time_t last_processed;  /**> Last time this LED was processed (used to perform soft PWM)*/
+    bool configured;           /**> Used to know if this specific LED construct is used or not */
+    led_io_t io;               /**> Static led IO config                                       */
+    mcu_time_t last_processed; /**> Last time this LED was processed (used to perform soft PWM)*/
+    struct
+    {
+        led_blink_pattern_t current;  /**> Current LED Pattern (used to trigger state changed events) */
+        led_blink_pattern_t previous; /**> Previous LED Pattern (used to trigger state changed events)*/
+    } patterns;
+
     union
     {
         struct
         {
-            uint8_t step;    /**> Keeps track of the current duty cycle applied to the LED   */
+            uint8_t step; /**> Keeps track of the current duty cycle applied to the LED   */
         } breathing;
 
         struct
         {
-            uint8_t count;  /**> Keeps track of the amount of blinks already executed       */
+            uint8_t count; /**> Keeps track of the amount of blinks already executed       */
         } accept;
     } states;
 } internal_config_t;
@@ -27,28 +33,28 @@ static internal_config_t internal_config[MAX_LED_COUNT];
 
 static void reset_internals(void);
 
-static void handle_led_accept(mcu_time_t const *const time, internal_config_t * const config);
-static void handle_led_warning(mcu_time_t const *const time, internal_config_t * const config);
-static void handle_led_breathing(mcu_time_t const *const time, internal_config_t * const config);
+static void handle_led_accept(mcu_time_t const *const time, internal_config_t *const config);
+static void handle_led_warning(mcu_time_t const *const time, internal_config_t *const config);
+static void handle_led_breathing(mcu_time_t const *const time, internal_config_t *const config);
 
-static void toggle(led_static_config_t * const config);
+static void toggle(led_io_t *const config);
+static void led_on(led_io_t *const config);
+static void led_off(led_io_t *const config);
 
-void led_static_config_default(led_static_config_t *config)
+void led_static_config_default(led_io_t *io)
 {
-    config->pattern = LED_BLINK_NONE;
-    config->pin_id = 0;
-    config->port = NULL;
+    io->pin = 0;
+    io->port = NULL;
 }
 
-void led_init(const led_static_config_t *config, const uint8_t length)
+void led_init(const led_io_t *config, const uint8_t length)
 {
     reset_internals();
     uint8_t max_length = length < MAX_LED_COUNT ? length : MAX_LED_COUNT;
     for (uint8_t i = 0; i < max_length; i++)
     {
-        internal_config[i].config.pattern = config[i].pattern;
-        internal_config[i].config.port = config[i].port;
-        internal_config[i].config.pin_id = config[i].pin_id;
+        internal_config[i].io.port = config[i].port;
+        internal_config[i].io.pin = config[i].pin;
         internal_config[i].configured = true;
         internal_config[i].states.breathing.step = 0;
     }
@@ -61,7 +67,7 @@ void led_set_blink_pattern(const uint8_t led_id, const led_blink_pattern_t patte
         return;
     }
 
-    internal_config[led_id].config.pattern = pattern;
+    internal_config[led_id].patterns.current = pattern;
 }
 
 void led_process(mcu_time_t const *const time)
@@ -75,7 +81,7 @@ void led_process(mcu_time_t const *const time)
             break;
         }
 
-        switch (internal_config[i].config.pattern)
+        switch (internal_config[i].patterns.current)
         {
             case LED_BLINK_BREATHING:
                 handle_led_breathing(time, &internal_config[i]);
@@ -85,14 +91,22 @@ void led_process(mcu_time_t const *const time)
                 handle_led_warning(time, &internal_config[i]);
                 break;
 
-            case LED_BLINK_ACCEPT :
+            case LED_BLINK_ACCEPT:
                 handle_led_accept(time, &internal_config[i]);
                 break;
 
             case LED_BLINK_NONE:
             default:
+                // Only turn the led off in case of event generation
+                if (internal_config[i].patterns.previous != internal_config[i].patterns.current)
+                {
+                    led_off(&internal_config[i].io);
+                }
+
                 break;
         }
+
+        internal_config[i].patterns.previous = internal_config[i].patterns.current;
     }
 }
 
@@ -100,34 +114,34 @@ static void reset_internals(void)
 {
     for (uint8_t i = 0; i < MAX_LED_COUNT; i++)
     {
-        led_static_config_default(&internal_config[i].config);
+        led_static_config_default(&internal_config[i].io);
         internal_config[i].configured = false;
         time_default(&internal_config[i].last_processed);
+        internal_config[i].patterns.current = LED_BLINK_NONE;
+        internal_config[i].patterns.previous = LED_BLINK_NONE;
     }
 }
 
-
-static void handle_led_accept(mcu_time_t const *const time, internal_config_t * const config)
+static void handle_led_accept(mcu_time_t const *const time, internal_config_t *const config)
 {
-    (void) time;
-    (void) config;
+    (void)time;
+    (void)config;
 }
 
-
-static void handle_led_warning(mcu_time_t const *const time, internal_config_t * const internal)
+static void handle_led_warning(mcu_time_t const *const time, internal_config_t *const config)
 {
-    uint32_t elapsed = (time->seconds - internal->last_processed.seconds);
-    if(elapsed > LED_BLINK_WARNING_HALF_P)
+    uint32_t elapsed = (time->seconds - config->last_processed.seconds);
+    if (elapsed > LED_BLINK_WARNING_HALF_P)
     {
-        toggle(&internal->config);
-        internal->last_processed.seconds = time->seconds;
+        toggle(&config->io);
+        config->last_processed.seconds = time->seconds;
     }
 }
 
 static void handle_led_breathing(mcu_time_t const *const time, internal_config_t *config)
 {
     uint32_t elapsed = 0;
-    if(time->milliseconds > config->last_processed.milliseconds)
+    if (time->milliseconds > config->last_processed.milliseconds)
     {
         elapsed = time->milliseconds - config->last_processed.milliseconds;
     }
@@ -139,38 +153,33 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
 
     // Time to process the new duty-cycle
     // Event is generated at a target frequency of 25Hz
-    if(elapsed <= LED_BLINK_BREATHING_UPDATE_MS)
+    if (elapsed <= LED_BLINK_BREATHING_UPDATE_MS)
     {
         uint8_t duty = 0;
 
         // NOTE : can be rewritten so that duty cycle is not recomputed multiple times for the same step
         // Sawtooth implementation, positive ramp (0 to 100)
-        if(config->states.breathing.step <= LED_BLINK_BREATHING_HALF_CYCLE_STEPS)
+        if (config->states.breathing.step <= LED_BLINK_BREATHING_HALF_CYCLE_STEPS)
         {
             duty = config->states.breathing.step * LED_BLINK_BREATHING_DUTY_CYCLE_INC;
         }
         // Sawtooth implementation, negative ramp (100 to 0)
         else
         {
-            duty = 100 - ((config->states.breathing.step - (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_HALF_P)) * LED_BLINK_BREATHING_DUTY_CYCLE_INC);
+            duty = 100 - ((config->states.breathing.step - (LED_BLINK_BREATHING_HALF_CYCLE_STEPS)) * LED_BLINK_BREATHING_DUTY_CYCLE_INC);
         }
 
-        range_uint8_t input = {
-            .start = 0,
-            .end = 100
-        };
-        range_uint8_t output = {
-            .start = 0,
-            .end = LED_BLINK_BREATHING_UPDATE_MS - 1
-        };
+        range_uint8_t input = {.start = 0, .end = 100};
+        range_uint8_t output = {.start = 0, .end = LED_BLINK_BREATHING_UPDATE_MS - 1};
 
         uint8_t duty_ms = 0;
-        duty_ms = interpolation_linear_uint8_to_uint8(duty, &input, &output );
+        duty_ms = interpolation_linear_uint8_to_uint8(duty, &input, &output);
 
-        if(elapsed >= duty_ms)
+        if (elapsed >= duty_ms)
         {
             // Switch off the LED
-            *config->config.port &= (1 << config->config.pin_id);
+            *config->io.port &= ~(1 << config->io.pin);
+            led_off(&config->io);
         }
 
         config->states.breathing.step++;
@@ -180,10 +189,22 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
     else
     {
         config->last_processed = *time;
+        // Switch on the LED
+        led_on(&config->io);
     }
 }
 
-static void toggle(led_static_config_t * const config)
+static void toggle(led_io_t *const config)
 {
-    *config->port ^= (1 << config->pin_id);
+    *config->port ^= (1 << config->pin);
+}
+
+static void led_on(led_io_t *const config)
+{
+    *config->port |= ~(1 << config->pin);
+}
+
+static void led_off(led_io_t *const config)
+{
+    *config->port &= ~(1 << config->pin);
 }
