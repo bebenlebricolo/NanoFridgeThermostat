@@ -53,6 +53,11 @@ void led_static_config_default(led_io_t *config);
 void led_init(const led_io_t *config, const uint8_t length);
 
 /**
+ * @brief clears out internal memory and reverts LED states back to defaults.
+*/
+void led_reset(void);
+
+/**
  * @brief processes events on all registered LEDs.
  */
 void led_process(mcu_time_t const *const time);

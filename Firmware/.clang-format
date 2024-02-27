@@ -30,3 +30,7 @@ PenaltyBreakComment: 0
 #BinPackParameters : true
 BinPackArguments: true
 AlignAfterOpenBracket: Align
+
+# For C++ only
+AccessModifierOffset: -4
+IndentAccessModifiers: false

@@ -31,8 +31,6 @@ typedef struct
 
 static internal_config_t internal_config[MAX_LED_COUNT];
 
-static void reset_internals(void);
-
 static void handle_led_accept(mcu_time_t const *const time, internal_config_t *const config);
 static void handle_led_warning(mcu_time_t const *const time, internal_config_t *const config);
 static void handle_led_breathing(mcu_time_t const *const time, internal_config_t *const config);
@@ -47,9 +45,21 @@ void led_static_config_default(led_io_t *io)
     io->port = NULL;
 }
 
+void led_reset(void)
+{
+    for (uint8_t i = 0; i < MAX_LED_COUNT; i++)
+    {
+        led_static_config_default(&internal_config[i].io);
+        internal_config[i].configured = false;
+        time_default(&internal_config[i].last_processed);
+        internal_config[i].patterns.current = LED_BLINK_NONE;
+        internal_config[i].patterns.previous = LED_BLINK_NONE;
+    }
+}
+
 void led_init(const led_io_t *config, const uint8_t length)
 {
-    reset_internals();
+    led_reset();
     uint8_t max_length = length < MAX_LED_COUNT ? length : MAX_LED_COUNT;
     for (uint8_t i = 0; i < max_length; i++)
     {
@@ -110,18 +120,6 @@ void led_process(mcu_time_t const *const time)
     }
 }
 
-static void reset_internals(void)
-{
-    for (uint8_t i = 0; i < MAX_LED_COUNT; i++)
-    {
-        led_static_config_default(&internal_config[i].io);
-        internal_config[i].configured = false;
-        time_default(&internal_config[i].last_processed);
-        internal_config[i].patterns.current = LED_BLINK_NONE;
-        internal_config[i].patterns.previous = LED_BLINK_NONE;
-    }
-}
-
 static void handle_led_accept(mcu_time_t const *const time, internal_config_t *const config)
 {
     (void)time;
@@ -131,9 +129,17 @@ static void handle_led_accept(mcu_time_t const *const time, internal_config_t *c
 static void handle_led_warning(mcu_time_t const *const time, internal_config_t *const config)
 {
     uint32_t elapsed = (time->seconds - config->last_processed.seconds);
-    if (elapsed > LED_BLINK_WARNING_HALF_P)
+    if ((elapsed % LED_BLINK_WARNING_PERIOD_S ) < LED_BLINK_WARNING_HALF_P)
     {
-        toggle(&config->io);
+        led_on(&config->io);
+    }
+    else if((elapsed % LED_BLINK_WARNING_PERIOD_S ) < LED_BLINK_WARNING_PERIOD_S)
+    {
+        led_off(&config->io);
+    }
+
+    if(elapsed >= LED_BLINK_WARNING_PERIOD_S)
+    {
         config->last_processed.seconds = time->seconds;
     }
 }
@@ -201,7 +207,7 @@ static void toggle(led_io_t *const config)
 
 static void led_on(led_io_t *const config)
 {
-    *config->port |= ~(1 << config->pin);
+    *config->port |= (1 << config->pin);
 }
 
 static void led_off(led_io_t *const config)
