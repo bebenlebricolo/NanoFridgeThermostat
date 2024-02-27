@@ -102,6 +102,7 @@ void led_process(mcu_time_t const *const time)
 {
     for (uint8_t i = 0; i < MAX_LED_COUNT; i++)
     {
+        internal_config_t * const config = &internal_config[i];
         if (false == internal_config[i].configured)
         {
             // First non configured led implies there is no more configured ones after it
@@ -109,7 +110,13 @@ void led_process(mcu_time_t const *const time)
             break;
         }
 
-        switch (internal_config[i].patterns.current)
+        // Update time of last processed (useful to start new patterns)
+        if(config->patterns.current != config->patterns.previous)
+        {
+            config->last_processed = *time;
+        }
+
+        switch (config->patterns.current)
         {
             case LED_BLINK_BREATHING:
                 handle_led_breathing(time, &internal_config[i]);
@@ -126,15 +133,15 @@ void led_process(mcu_time_t const *const time)
             case LED_BLINK_NONE:
             default:
                 // Only turn the led off in case of event generation
-                if (internal_config[i].patterns.previous != internal_config[i].patterns.current)
+                if (config->patterns.previous != config->patterns.current)
                 {
-                    led_off(&internal_config[i].io);
+                    led_off(&config->io);
                 }
 
                 break;
         }
 
-        internal_config[i].patterns.previous = internal_config[i].patterns.current;
+        config->patterns.previous = config->patterns.current;
     }
 }
 
@@ -143,16 +150,7 @@ static void handle_led_accept(mcu_time_t const *const time, internal_config_t *c
     uint32_t elapsed = 0;
     get_elapsed_milliseconds(time, config, &elapsed);
 
-    if(elapsed < LED_BLINK_ACCEPT_ON_TIME_MS)
-    {
-        led_on(&config);
-    }
-    else
-    {
-        led_off(&config);
-    }
-
-    if(elapsed >= LED_BLINK_ACCEPT_ON_TIME_MS * 2U)
+    if(elapsed >= LED_BLINK_ACCEPT_CYCLE_PERIOD_MS)
     {
         config->last_processed.milliseconds = time->milliseconds;
         config->states.accept.count++;
@@ -163,6 +161,20 @@ static void handle_led_accept(mcu_time_t const *const time, internal_config_t *c
     {
         config->states.accept.count = 0;
         config->patterns.current = LED_BLINK_NONE;
+        return;
+    }
+
+    uint32_t elapsed_clamped = elapsed % LED_BLINK_ACCEPT_CYCLE_PERIOD_MS;
+
+    // First half of the cycle period (ON time)
+    if(elapsed_clamped < LED_BLINK_ACCEPT_ON_TIME_MS)
+    {
+        led_on(&config->io);
+    }
+    // Second half of the cycle period (OFF time)
+    else if(elapsed_clamped < LED_BLINK_ACCEPT_CYCLE_PERIOD_MS)
+    {
+        led_off(&config->io);
     }
 }
 
@@ -249,7 +261,7 @@ static void led_off(led_io_t *const config)
 
 static void get_elapsed_milliseconds(mcu_time_t const* const time, internal_config_t * const config, uint32_t * const elapsed)
 {
-    if (time->milliseconds > config->last_processed.milliseconds)
+    if (time->milliseconds >= config->last_processed.milliseconds)
     {
         *elapsed = time->milliseconds - config->last_processed.milliseconds;
     }

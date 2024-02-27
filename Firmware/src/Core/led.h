@@ -34,9 +34,10 @@ extern "C" {
     (1000U  * LED_BLINK_ACCEPT_PERIOD_S)                            /**> LED accept pattern cycle period (milliseconds)                             */
 
 #define LED_BLINK_ACCEPT_FLASHES  3U                                /**> LED accept pattern num of flashes                                          */
+#define LED_BLINK_ACCEPT_CYCLE_PERIOD_MS \
+    (LED_BLINK_ACCEPT_PERIOD_MS / LED_BLINK_ACCEPT_FLASHES)         /**> LED accept pattern individual cycle period (milliseconds)                  */
 #define LED_BLINK_ACCEPT_ON_TIME_MS \
-    (LED_BLINK_ACCEPT_PERIOD_MS / ( 2 * LED_BLINK_ACCEPT_FLASHES))  /**> LED accept pattern ON time (milliseconds) - half period (on/off is 333 ms) */
-
+    (LED_BLINK_ACCEPT_CYCLE_PERIOD_MS / 2U)                         /**> LED accept pattern ON time (milliseconds) - half period (on/off is 333 ms) */
 // clang-format on
 
 typedef enum
