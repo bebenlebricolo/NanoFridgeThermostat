@@ -73,6 +73,7 @@ TEST_F(LedFixture, led_process_initialized_pattern_none_test)
     ASSERT_EQ(port & (1 << leds[1].pin), 0);
 }
 
+// Testing out the Warning blink pattern
 TEST_F(LedFixture, led_process_pattern_warning_test)
 {
     // Initialize internal memory
@@ -113,44 +114,16 @@ TEST_F(LedFixture, led_process_pattern_warning_test)
     ASSERT_EQ(port & (1 << leds[1].pin), 0);
 }
 
-TEST_F(LedFixture, led_process_pattern_breathing_test)
+TEST_F(LedFixture, led_process_pattern_accept_test)
 {
     // Initialize internal memory
-    led_init(leds, 2U);
+    led_init(leds, 1U);
 
-    led_set_blink_pattern(0U, LED_BLINK_WARNING);
+    led_set_blink_pattern(0U, LED_BLINK_ACCEPT);
     led_process(&time);
 
     // Led 1 should be HIGH now
     ASSERT_NE(port & (1 << leds[0].pin), 0);
-    ASSERT_EQ(port & (1 << leds[1].pin), 0);
-
-    time.milliseconds = 12;
-    led_process(&time);
-
-    ASSERT_NE(port & (1 << leds[0].pin), 0);
-    ASSERT_EQ(port & (1 << leds[1].pin), 0);
-
-    time.seconds = LED_BLINK_WARNING_HALF_P;
-    led_process(&time);
-
-    // Led should be off now
-    ASSERT_EQ(port & (1 << leds[0].pin), 0);
-    ASSERT_EQ(port & (1 << leds[1].pin), 0);
-
-    time.seconds = LED_BLINK_WARNING_PERIOD_S;
-    led_process(&time);
-
-    // Led should be ON again now
-    ASSERT_NE(port & (1 << leds[0].pin), 0);
-    ASSERT_EQ(port & (1 << leds[1].pin), 0);
-
-    led_set_blink_pattern(0U, LED_BLINK_NONE);
-    led_process(&time);
-
-    // This should revert the led back to its off state :
-    ASSERT_EQ(port & (1 << leds[0].pin), 0);
-    ASSERT_EQ(port & (1 << leds[1].pin), 0);
 }
 
 

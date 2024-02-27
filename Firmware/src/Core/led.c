@@ -34,6 +34,7 @@ static internal_config_t internal_config[MAX_LED_COUNT];
 static void handle_led_accept(mcu_time_t const *const time, internal_config_t *const config);
 static void handle_led_warning(mcu_time_t const *const time, internal_config_t *const config);
 static void handle_led_breathing(mcu_time_t const *const time, internal_config_t *const config);
+static void get_elapsed_milliseconds(mcu_time_t const* const time, internal_config_t * const config, uint32_t * const elapsed);
 
 static void toggle(led_io_t *const config);
 static void led_on(led_io_t *const config);
@@ -77,7 +78,24 @@ void led_set_blink_pattern(const uint8_t led_id, const led_blink_pattern_t patte
         return;
     }
 
-    internal_config[led_id].patterns.current = pattern;
+    internal_config_t * config = &internal_config[led_id];
+    config->patterns.current = pattern;
+
+    // Reinitializes the "states" trackers
+    switch(pattern)
+    {
+        case LED_BLINK_ACCEPT:
+            config->states.accept.count = 0;
+            break;
+
+        case LED_BLINK_BREATHING:
+            config->states.breathing.step = 0;
+            break;
+
+        case LED_BLINK_WARNING:
+        default:
+            break;
+    }
 }
 
 void led_process(mcu_time_t const *const time)
@@ -122,8 +140,30 @@ void led_process(mcu_time_t const *const time)
 
 static void handle_led_accept(mcu_time_t const *const time, internal_config_t *const config)
 {
-    (void)time;
-    (void)config;
+    uint32_t elapsed = 0;
+    get_elapsed_milliseconds(time, config, &elapsed);
+
+    if(elapsed < LED_BLINK_ACCEPT_ON_TIME_MS)
+    {
+        led_on(&config);
+    }
+    else
+    {
+        led_off(&config);
+    }
+
+    if(elapsed >= LED_BLINK_ACCEPT_ON_TIME_MS * 2U)
+    {
+        config->last_processed.milliseconds = time->milliseconds;
+        config->states.accept.count++;
+    }
+
+    // Reverts back to original state when pattern is fully executed
+    if(config->states.accept.count >= LED_BLINK_ACCEPT_FLASHES)
+    {
+        config->states.accept.count = 0;
+        config->patterns.current = LED_BLINK_NONE;
+    }
 }
 
 static void handle_led_warning(mcu_time_t const *const time, internal_config_t *const config)
@@ -147,15 +187,7 @@ static void handle_led_warning(mcu_time_t const *const time, internal_config_t *
 static void handle_led_breathing(mcu_time_t const *const time, internal_config_t *config)
 {
     uint32_t elapsed = 0;
-    if (time->milliseconds > config->last_processed.milliseconds)
-    {
-        elapsed = time->milliseconds - config->last_processed.milliseconds;
-    }
-    // Milliseconds was reset to 0 after reaching 1000
-    else
-    {
-        elapsed = (time->milliseconds + 1000) - config->last_processed.milliseconds;
-    }
+    get_elapsed_milliseconds(time, config, &elapsed);
 
     // Time to process the new duty-cycle
     // Event is generated at a target frequency of 25Hz
@@ -213,4 +245,17 @@ static void led_on(led_io_t *const config)
 static void led_off(led_io_t *const config)
 {
     *config->port &= ~(1 << config->pin);
+}
+
+static void get_elapsed_milliseconds(mcu_time_t const* const time, internal_config_t * const config, uint32_t * const elapsed)
+{
+    if (time->milliseconds > config->last_processed.milliseconds)
+    {
+        *elapsed = time->milliseconds - config->last_processed.milliseconds;
+    }
+    // Milliseconds was reset to 0 after reaching 1000
+    else
+    {
+        *elapsed = (time->milliseconds + 1000) - config->last_processed.milliseconds;
+    }
 }
