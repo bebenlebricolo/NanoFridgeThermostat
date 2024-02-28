@@ -196,6 +196,7 @@ static void handle_led_warning(mcu_time_t const *const time, internal_config_t *
     }
 }
 
+
 static void handle_led_breathing(mcu_time_t const *const time, internal_config_t *config)
 {
     uint32_t elapsed = 0;

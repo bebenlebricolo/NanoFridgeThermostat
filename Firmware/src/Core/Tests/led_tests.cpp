@@ -28,7 +28,6 @@ protected:
         led_reset();
     }
 
-
     inline bool _led_is_on(const uint8_t led_id)
     {
         return (port & (1 << leds[led_id].pin)) != 0;
@@ -47,7 +46,7 @@ protected:
 
     inline uint16_t get_elapsed_time(const uint16_t start, const uint16_t end)
     {
-        if(start > end)
+        if (start > end)
         {
             return (end + 1000) - start;
         }
@@ -189,7 +188,6 @@ TEST_F(LedFixture, led_process_pattern_accept_test)
     led_process(&time);
     ASSERT_TRUE(_led_is_off(0));
 
-
     // ####################################
     // Now all subsequent calls should leave the LED off
     // ####################################
@@ -205,15 +203,15 @@ TEST_F(LedFixture, led_process_pattern_accept_test)
 TEST_F(LedFixture, led_breathing_get_duty_sawtooth_test)
 {
     std::vector<uint8_t> duties;
-    for(uint8_t i = 0 ; i < LED_BLINK_BREATHING_FULL_CYCLE_STEPS ; i++)
+    for (uint8_t i = 0; i < LED_BLINK_BREATHING_FULL_CYCLE_STEPS; i++)
     {
         uint8_t duty = led_breathing_get_duty_sawtooth(i);
         duties.push_back(duty);
     }
 
     ASSERT_EQ(duties[LED_BLINK_BREATHING_HALF_CYCLE_STEPS], 100U);
-    ASSERT_EQ(duties[LED_BLINK_BREATHING_HALF_CYCLE_STEPS/2], 50U);
-    ASSERT_EQ(duties[LED_BLINK_BREATHING_HALF_CYCLE_STEPS*3/2], 50U);
+    ASSERT_EQ(duties[LED_BLINK_BREATHING_HALF_CYCLE_STEPS / 2], 50U);
+    ASSERT_EQ(duties[LED_BLINK_BREATHING_HALF_CYCLE_STEPS * 3 / 2], 50U);
     ASSERT_EQ(duties[LED_BLINK_BREATHING_FULL_CYCLE_STEPS - 1], 2U);
     ASSERT_EQ(duties[0], 0U);
 }
@@ -229,35 +227,57 @@ TEST_F(LedFixture, led_process_pattern_breathing_test)
     std::vector<uint16_t> on_times;
 
     // Collect data (4 seconds is a full wave cycle)
-    uint8_t prev_state = 0;
     uint8_t current_state = 0;
+    uint8_t prev_state = 0;
+    bool led_was_on = false;
     uint16_t last_milli = 0;
-    for(uint16_t i = 0 ; i < (LED_BLINK_BREATHING_PERIOD_S * 1000); i++)
+    uint16_t elapsed_on_time = 0;
+    for (uint16_t i = 0; i < (LED_BLINK_BREATHING_PERIOD_S * 1000); i++)
     {
         time.milliseconds = i % 1000;
 
         led_process(&time);
         current_state = _read_pin(0);
-        if(current_state != prev_state)
+
+        // Start of a new step and LED is ON
+        if ((i % LED_BLINK_BREATHING_UPDATE_MS) == 0 && current_state == 1)
         {
-            // Falling edge
-            if(current_state == 0)
+            // track led on start time
+            led_was_on = true;
+        }
+
+        // We are currently processing within a "step" (40 ms time window)
+        if (led_was_on)
+        {
+            if ((i % LED_BLINK_BREATHING_UPDATE_MS) != 0)
             {
-                uint16_t elapsed = get_elapsed_time(last_milli, time.milliseconds);
-                on_times.push_back(elapsed);
-            }
-            // Rising edge
-            else
-            {
-                last_milli = time.milliseconds;
+                // Falling edge detected
+                if (current_state != prev_state && current_state == 0)
+                {
+                    elapsed_on_time = get_elapsed_time(last_milli, time.milliseconds);
+                }
             }
         }
+
+        // End of time window detected : reset trackers
+        if ((i % LED_BLINK_BREATHING_UPDATE_MS) == (LED_BLINK_BREATHING_UPDATE_MS - 1))
+        {
+            // Handles the "always on" state
+            if (led_was_on && current_state == 1)
+            {
+                elapsed_on_time = get_elapsed_time(last_milli, time.milliseconds);
+            }
+            on_times.push_back(elapsed_on_time);
+            last_milli = time.milliseconds;
+            elapsed_on_time = 0;
+            led_was_on = false;
+        }
+
         prev_state = current_state;
     }
 
     ASSERT_EQ(on_times[LED_BLINK_BREATHING_HALF_CYCLE_STEPS], LED_BLINK_BREATHING_UPDATE_MS / 2U);
 }
-
 
 int main(int argc, char **argv)
 {
