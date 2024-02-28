@@ -129,13 +129,15 @@ uint8_t interpolation_linear_uint8_to_uint8(const uint8_t value, range_uint8_t c
     uint8_t in_delta = in->end - in->start;
     uint8_t out_delta = out->end - out->start;
 
-    uint8_t in_tmp = value - in->start;
-    in_tmp *= UINT8_ALIASING_FACTOR;
-    in_tmp /= in_delta;
+    uint16_t in_tmp = (uint16_t) (value - in->start);
+    in_tmp *= UINT16_ALIASING_FACTOR;
+    in_tmp /= (uint16_t) in_delta;
 
-    uint8_t tmp_result = (in_tmp * out_delta);
-    tmp_result /= UINT8_ALIASING_FACTOR;
+    uint16_t tmp_result = (in_tmp * out_delta);
+    tmp_result /= UINT16_ALIASING_FACTOR;
 
-    tmp_result += out->start;
-    return tmp_result;
+    tmp_result += (uint16_t) out->start;
+
+    uint8_t result = (uint8_t) tmp_result;
+    return result;
 }

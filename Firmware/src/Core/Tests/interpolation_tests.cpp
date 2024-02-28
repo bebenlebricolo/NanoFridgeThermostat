@@ -124,6 +124,34 @@ TEST_F(InterpolationFixture, linear_interpolate_uint16_to_int8_same_signs_ranges
     ASSERT_EQ(result, 9);
 }
 
+TEST_F(InterpolationFixture, linear_interpolate_uint8_to_uint8_same_signs_ranges)
+{
+    uint8_t value = 34;
+
+    // Emulates resistance of an NTC thermistor
+    range_uint8_t input = {
+        .start = 0,
+        .end = 100
+    };
+
+    // Emulates temperatures (rising temps with decreasing resistance)
+    range_uint8_t output = {
+        .start = 0,
+        .end = 39
+    };
+
+    uint8_t result = interpolation_linear_uint8_to_uint8(value, &input, &output);
+    ASSERT_EQ(result, 13);
+
+    value = 3;
+    result = interpolation_linear_uint8_to_uint8(value, &input, &output);
+    ASSERT_EQ(result, 1);
+
+    value = 7;
+    result = interpolation_linear_uint8_to_uint8(value, &input, &output);
+    ASSERT_EQ(result, 2);
+}
+
 
 int main(int argc, char **argv)
 {

@@ -255,7 +255,7 @@ TEST_F(LedFixture, led_process_pattern_breathing_test)
         prev_state = current_state;
     }
 
-    (void) prev_state;
+    ASSERT_EQ(on_times[LED_BLINK_BREATHING_HALF_CYCLE_STEPS], LED_BLINK_BREATHING_UPDATE_MS / 2U);
 }
 
 
