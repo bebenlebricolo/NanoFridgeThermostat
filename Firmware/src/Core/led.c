@@ -36,7 +36,7 @@ static void handle_led_warning(mcu_time_t const *const time, internal_config_t *
 static void handle_led_breathing(mcu_time_t const *const time, internal_config_t *const config);
 static void get_elapsed_milliseconds(mcu_time_t const* const time, internal_config_t * const config, uint32_t * const elapsed);
 
-static void toggle(led_io_t *const config);
+
 static void led_on(led_io_t *const config);
 static void led_off(led_io_t *const config);
 
@@ -205,19 +205,7 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
     // Event is generated at a target frequency of 25Hz
     if (elapsed <= LED_BLINK_BREATHING_UPDATE_MS)
     {
-        uint8_t duty = 0;
-
-        // NOTE : can be rewritten so that duty cycle is not recomputed multiple times for the same step
-        // Sawtooth implementation, positive ramp (0 to 100)
-        if (config->states.breathing.step <= LED_BLINK_BREATHING_HALF_CYCLE_STEPS)
-        {
-            duty = config->states.breathing.step * LED_BLINK_BREATHING_DUTY_CYCLE_INC;
-        }
-        // Sawtooth implementation, negative ramp (100 to 0)
-        else
-        {
-            duty = 100 - ((config->states.breathing.step - (LED_BLINK_BREATHING_HALF_CYCLE_STEPS)) * LED_BLINK_BREATHING_DUTY_CYCLE_INC);
-        }
+        uint8_t duty = led_breathing_get_duty_sawtooth(config->states.breathing.step);
 
         range_uint8_t input = {.start = 0, .end = 100};
         range_uint8_t output = {.start = 0, .end = LED_BLINK_BREATHING_UPDATE_MS - 1};
@@ -228,12 +216,8 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
         if (elapsed >= duty_ms)
         {
             // Switch off the LED
-            *config->io.port &= ~(1 << config->io.pin);
             led_off(&config->io);
         }
-
-        config->states.breathing.step++;
-        config->states.breathing.step %= LED_BLINK_BREATHING_FULL_CYCLE_STEPS;
     }
     // Reset the window
     else
@@ -241,12 +225,10 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
         config->last_processed = *time;
         // Switch on the LED
         led_on(&config->io);
-    }
-}
 
-static void toggle(led_io_t *const config)
-{
-    *config->port ^= (1 << config->pin);
+        config->states.breathing.step++;
+        config->states.breathing.step %= LED_BLINK_BREATHING_FULL_CYCLE_STEPS;
+    }
 }
 
 static void led_on(led_io_t *const config)
@@ -270,4 +252,21 @@ static void get_elapsed_milliseconds(mcu_time_t const* const time, internal_conf
     {
         *elapsed = (time->milliseconds + 1000) - config->last_processed.milliseconds;
     }
+}
+
+uint8_t led_breathing_get_duty_sawtooth(const uint8_t step)
+{
+    uint8_t duty = 0;
+    // Sawtooth implementation, positive ramp (0 to 100)
+    if (step <= LED_BLINK_BREATHING_HALF_CYCLE_STEPS)
+    {
+        duty = step * LED_BLINK_BREATHING_DUTY_CYCLE_INC;
+    }
+    // Sawtooth implementation, negative ramp (100 to 0)
+    else
+    {
+        duty = 100 - ((step - (LED_BLINK_BREATHING_HALF_CYCLE_STEPS)) * LED_BLINK_BREATHING_DUTY_CYCLE_INC);
+    }
+
+    return duty;
 }

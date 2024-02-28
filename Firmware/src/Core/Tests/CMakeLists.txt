@@ -1,6 +1,8 @@
+
 ######################################################################
 ############################ Bridge tests ############################
 ######################################################################
+
 
 add_executable(bridge_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/bridge_tests.cpp
@@ -105,6 +107,10 @@ set_target_properties(current_tests
 
 add_executable(led_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/led_tests.cpp
+)
+
+target_compile_definitions(led_tests PUBLIC
+    UNIT_TESTING
 )
 
 gtest_discover_tests(led_tests)

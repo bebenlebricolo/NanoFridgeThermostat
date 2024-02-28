@@ -82,6 +82,8 @@ void led_process(mcu_time_t const *const time);
  */
 void led_set_blink_pattern(const uint8_t led_id, const led_blink_pattern_t pattern);
 
+uint8_t led_breathing_get_duty_sawtooth(const uint8_t step);
+
 #ifdef __cplusplus
 }
 #endif
