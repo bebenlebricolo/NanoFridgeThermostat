@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "Bridge/bridge.h"
+#include "bridge.h"
 
 class BridgeFixture : public ::testing::Test
 {
