@@ -9,6 +9,8 @@
 #include "Core/current.h"
 #include "Core/mcu_time.h"
 
+#include "Core/led.h"
+
 #include "Hal/persistent_memory.h"
 #include "Hal/timebase.h"
 
@@ -52,7 +54,7 @@
 
 // Pin mapping
 const uint8_t motor_control_pin = 2; // D2
-const uint8_t status_led_pin = 3;    // D3
+const uint8_t status_led_pin = 3;    // D3 -> PORTD3 of the atmega328PB Mcu
 const uint8_t minus_button_pin = 4;  // D4
 const uint8_t plus_button_pin = 5;   // D5
 
@@ -108,16 +110,6 @@ typedef struct
     uint16_t current_rms;
 } app_sensors_t;
 
-/**
- * @brief used to visually show what's going on on the board.
- */
-typedef enum
-{
-    LED_BLINK_MODE_STALLED_MOTOR, /**> Blinks in solid ON/OFF mode to indicate we are waiting for the motor to be ready */
-    LED_BLINK_MODE_LEARNING,      /**> Blinks gently with fade-in and fade-out grades to indicate the learning process  */
-    LED_BLINK_MODE_ACCEPT,        /**> Blinks rapidly 3 times before turning off                                        */
-    LED_BLINK_MODE_STOP           /**> LED doesn't blink at all                                                         */
-} led_blink_pattern_t;
 
 // Default configuration initialisation
 static persistent_config_t config = {
@@ -125,6 +117,14 @@ static persistent_config_t config = {
     .target_temperature = 4,
     .current_threshold = 0,
     .footer = PERMANENT_STORAGE_FOOTER,
+};
+
+static led_io_t leds[1U] =
+{
+    {
+        .port = &PORTD,
+        .pin = status_led_pin
+    }
 };
 
 static void read_buttons_events(button_state_t *const plus_button_event, button_state_t *const minus_button_event, const mcu_time_t *time);
@@ -167,6 +167,9 @@ void setup()
         persistent_mem_read_config(&config);
     }
 
+    led_init(leds, 1U);
+    led_set_blink_pattern(0U, LED_BLINK_WARNING);
+
     sei();
     // Serial.begin(9600);
 }
@@ -192,6 +195,7 @@ void loop()
     // Very important to process the current time as fast as we can (polling mode)
     timebase_process();
     time = timebase_get_time();
+    led_process(time);
 
     bool config_changed = false;
 
