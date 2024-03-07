@@ -203,7 +203,7 @@ TEST_F(LedFixture, led_process_pattern_accept_test)
 TEST_F(LedFixture, led_breathing_get_duty_sawtooth_test)
 {
     std::vector<uint8_t> duties;
-    for (uint8_t i = 0; i < LED_BLINK_BREATHING_FULL_CYCLE_STEPS; i++)
+    for (uint16_t i = 0; i < LED_BLINK_BREATHING_FULL_CYCLE_STEPS; i++)
     {
         uint8_t duty = led_breathing_get_duty_sawtooth(i);
         duties.push_back(duty);
@@ -212,7 +212,7 @@ TEST_F(LedFixture, led_breathing_get_duty_sawtooth_test)
     ASSERT_EQ(duties[LED_BLINK_BREATHING_HALF_CYCLE_STEPS], 100U);
     ASSERT_EQ(duties[LED_BLINK_BREATHING_HALF_CYCLE_STEPS / 2], 50U);
     ASSERT_EQ(duties[LED_BLINK_BREATHING_HALF_CYCLE_STEPS * 3 / 2], 50U);
-    ASSERT_EQ(duties[LED_BLINK_BREATHING_FULL_CYCLE_STEPS - 1], 2U);
+    ASSERT_EQ(duties[LED_BLINK_BREATHING_FULL_CYCLE_STEPS - 1], 1U);
     ASSERT_EQ(duties[0], 0U);
 }
 
