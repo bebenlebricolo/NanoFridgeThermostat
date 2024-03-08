@@ -13,16 +13,33 @@ extern "C" {
 // clang-format off
 
 // ################################### LED BLINK BREATHING PATTERN Defines ##############################################
-#define LED_BLINK_BREATHING_PERIOD_S 4U                                                                     /**> LED breathing cycle period                     */
-#define LED_BLINK_BREATHING_HALF_P (LED_BLINK_BREATHING_PERIOD_S / 2U)                                      /**> LED breathing half period                      */
-#define LED_BLINK_BREATHING_FREQ_H 100                                                                      /**> LED breathing base update frequency (Hertz)    */
-#define LED_BLINK_BREATHING_UPDATE_MS (1000 / LED_BLINK_BREATHING_FREQ_H)                                   /**> LED breathing base update period (millisecond) */
-#define LED_BLINK_BREATHING_HALF_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_HALF_P)      /**> Number of events (steps) for half a period     */
-#define LED_BLINK_BREATHING_FULL_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_PERIOD_S)    /**> Number of events (steps) for the full period   */
+#define LED_BLINK_BREATHING_PERIOD_S 4U                                                                     /**> LED breathing cycle period                             */
+#define LED_BLINK_BREATHING_HALF_P (LED_BLINK_BREATHING_PERIOD_S / 2U)                                      /**> LED breathing half period                              */
+#define LED_BLINK_BREATHING_FREQ_H 70                                                                      /**> LED breathing base update frequency (Hertz)            */
+#define LED_BLINK_BREATHING_RESOLUTION_MS (1000 / LED_BLINK_BREATHING_FREQ_H)                               /**> LED PWM Resolution (how many millisecond per "step")   */
+#define LED_BLINK_BREATHING_HALF_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_HALF_P)      /**> Number of events (steps) for half a period             */
+#define LED_BLINK_BREATHING_FULL_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_PERIOD_S)    /**> Number of events (steps) for the full period           */
 #define LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR 20
 #define LED_BLINK_BREATHING_DUTY_CYCLE_INC  \
-    ((LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR * 100) / (LED_BLINK_BREATHING_HALF_P * LED_BLINK_BREATHING_FREQ_H))                                       /**> LED breathing duty cycle increment             */
+    ((LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR * 100) / (LED_BLINK_BREATHING_HALF_P * LED_BLINK_BREATHING_FREQ_H))   /**> LED breathing duty cycle increment             */
 
+/**
+ * @brief Macro used to enable pulse stuffing in software PWM code.
+ * Pulse stuffing is used to represent duty cycles which are not achievable with the physical resolution alone.
+ * For instance, when requiring a 100Hz pulse with a millisecond tick capability, we'll end with 1000ms/100Hz steps => 10 ms time period (window) per PWM pulse @100Hz.
+ * It means we only achieve a 10 grades resolution @100Hz max. And applied duty cycle (e.g. 50 duty -> 0-4 (ON), then 5-9 (OFF), same for 51, 53, 59.) will be aligned with
+ * the pulses.
+ * However we can use the remaining part of the division to stuff several consecutive time window (10) with a mix and match of pulses to virtually achieve intermediate levels of resolution.
+ * E.g. :
+ * 100 Hz, duty cycle of 55% :
+ * [5,6,5,6,5,6,5,6,5,6] -> The 1:1 alternating 5 ms and 6 ms pulse simulates the "effective" pulse in the exact middle
+ *
+ * Duty cycle : 33%
+ * [3,3,4,3,3,4,3,3,4,3]
+*/
+// #ifndef LED_PWM_NO_PULSE_STUFFING
+// #define LED_PWM_PULSE_STUFFING
+// #endif
 
 // ################################### LED BLINK WARNING PATTERN Defines ##############################################
 #define LED_BLINK_WARNING_PERIOD_S 2U                                                                       /**> LED warning cycle period                       */
@@ -70,7 +87,7 @@ void led_init(const led_io_t *config, const uint8_t length);
 
 /**
  * @brief clears out internal memory and reverts LED states back to defaults.
-*/
+ */
 void led_reset(void);
 
 /**

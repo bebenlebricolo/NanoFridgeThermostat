@@ -240,7 +240,7 @@ TEST_F(LedFixture, led_process_pattern_breathing_test)
         current_state = _read_pin(0);
 
         // Start of a new step and LED is ON
-        if ((i % LED_BLINK_BREATHING_UPDATE_MS) == 0 && current_state == 1)
+        if ((i % LED_BLINK_BREATHING_RESOLUTION_MS) == 0 && current_state == 1)
         {
             // track led on start time
             led_was_on = true;
@@ -249,7 +249,7 @@ TEST_F(LedFixture, led_process_pattern_breathing_test)
         // We are currently processing within a "step" (40 ms time window)
         if (led_was_on)
         {
-            if ((i % LED_BLINK_BREATHING_UPDATE_MS) != 0)
+            if ((i % LED_BLINK_BREATHING_RESOLUTION_MS) != 0)
             {
                 // Falling edge detected
                 if (current_state != prev_state && current_state == 0)
@@ -260,7 +260,7 @@ TEST_F(LedFixture, led_process_pattern_breathing_test)
         }
 
         // End of time window detected : reset trackers
-        if ((i % LED_BLINK_BREATHING_UPDATE_MS) == (LED_BLINK_BREATHING_UPDATE_MS - 1))
+        if ((i % LED_BLINK_BREATHING_RESOLUTION_MS) == (LED_BLINK_BREATHING_RESOLUTION_MS - 1))
         {
             // Handles the "always on" state
             if (led_was_on && current_state == 1)
@@ -276,7 +276,7 @@ TEST_F(LedFixture, led_process_pattern_breathing_test)
         prev_state = current_state;
     }
 
-    ASSERT_EQ(on_times[LED_BLINK_BREATHING_HALF_CYCLE_STEPS], LED_BLINK_BREATHING_UPDATE_MS / 2U);
+    ASSERT_EQ(on_times[LED_BLINK_BREATHING_HALF_CYCLE_STEPS], LED_BLINK_BREATHING_RESOLUTION_MS / 2U);
 }
 
 int main(int argc, char **argv)

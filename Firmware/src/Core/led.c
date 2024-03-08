@@ -1,8 +1,13 @@
-#include "led.h"
+#include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 
 #include "interpolation.h"
+#include "led.h"
+
+#ifdef LED_PWM_PULSE_STUFFING
+#include "spanner.h"
+#endif
 
 typedef struct
 {
@@ -15,11 +20,30 @@ typedef struct
         led_blink_pattern_t previous; /**> Previous LED Pattern (used to trigger state changed events)*/
     } patterns;
 
-    union
+    struct
     {
+
+        /**
+         * @brief breathing LED pattern configuration and trackers
+        */
         struct
         {
-            uint16_t step; /**> Keeps track of the current duty cycle applied to the LED   */
+            uint16_t step;   /**> Keeps track of the current duty cycle applied to the LED   */
+            bool new_step;   /**> Used to trigger the "new step" event. Some computation is performed only once to save time */
+            uint8_t duty_ms; /**> Currently applied duty cycle : 0 - 100                                                     */
+
+#ifdef LED_PWM_PULSE_STUFFING
+            struct
+            {
+                bool used;     /**> Tells the algorithm whether stuffing is currently in use or not                   */
+                uint8_t index; /**> Current index in the data sequence                                                */
+                uint8_t sequence[LED_BLINK_BREATHING_RESOLUTION_MS]; /**> Sequence spans over max Resolution (for 100Hz signal with millisecond tick,
+                                                                        resolution is 10). This field is used when the desired duty cycle can't be
+                                                                        exactly represented with the physical resolution, hence pulse stuffing needs
+                                                                        to be applied */
+
+            } stuffing;
+#endif /* LED_PWM_PULSE_STUFFING */
         } breathing;
 
         struct
@@ -68,6 +92,14 @@ void led_init(const led_io_t *config, const uint8_t length)
         internal_config[i].io.pin = config[i].pin;
         internal_config[i].configured = true;
         internal_config[i].states.breathing.step = 0;
+        internal_config[i].states.breathing.new_step = true;
+
+        // Pulse stuffing requires an additional data structure array
+#ifdef LED_PWM_PULSE_STUFFING
+        internal_config[i].states.breathing.stuffing.index = 0;
+        internal_config[i].states.breathing.stuffing.used = false;
+        memset(internal_config[i].states.breathing.stuffing.sequence, 0, LED_BLINK_BREATHING_RESOLUTION_MS);
+#endif
     }
 }
 
@@ -90,6 +122,8 @@ void led_set_blink_pattern(const uint8_t led_id, const led_blink_pattern_t patte
 
         case LED_BLINK_BREATHING:
             config->states.breathing.step = 0;
+            // Forces the calculation of new values for the LED duty cycle (ms)
+            config->states.breathing.new_step = true;
             break;
 
         case LED_BLINK_WARNING:
@@ -196,7 +230,6 @@ static void handle_led_warning(mcu_time_t const *const time, internal_config_t *
     }
 }
 
-
 // Current performances (observed with an oscilloscope) :
 // target frequency     25      50      75      100     150     200     225
 // actual frequency     24.6    47.63   71.44   90.92   142.86  166.66  200,07
@@ -207,31 +240,71 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
     static uint32_t elapsed = 0;
     get_elapsed_milliseconds(time, config, &elapsed);
 
-    // Time to process the new duty-cycle
-    // Event is generated at a target frequency of 25Hz
-    if (elapsed <= LED_BLINK_BREATHING_UPDATE_MS)
+    // Calculates new values for the currently evaluated step (only evaluated when we are running a new step)
+    if (true == config->states.breathing.new_step)
     {
         uint8_t duty = led_breathing_get_duty_sawtooth(config->states.breathing.step);
 
         range_uint8_t input = {.start = 0, .end = 100};
-        range_uint8_t output = {.start = 0, .end = LED_BLINK_BREATHING_UPDATE_MS - 1};
+        range_uint8_t output = {.start = 0, .end = LED_BLINK_BREATHING_RESOLUTION_MS};
 
         uint8_t duty_ms = 0;
         duty_ms = interpolation_linear_uint8_to_uint8(duty, &input, &output);
 
-        if(duty_ms == 0)
+        config->states.breathing.duty_ms = duty_ms;
+        config->states.breathing.new_step = false;
+
+#ifdef LED_PWM_PULSE_STUFFING
+        if(duty_ms / LED_BLINK_BREATHING_RESOLUTION_MS != config->states.breathing.duty_ms / LED_BLINK_BREATHING_RESOLUTION_MS)
+        {
+            // Only recompute if we are moving to a new multiple (e.g. 3x to 4x)
+            uint8_t remainder = duty % LED_BLINK_BREATHING_RESOLUTION_MS;
+            if (remainder == 0)
+            {
+                // We can represent exactly the duty cycle with the current resolution
+                // Se we're good to go without using the stuffing method.
+                config->states.breathing.stuffing.used = false;
+            }
+            else
+            {
+                config->states.breathing.stuffing.used = true;
+                config->states.breathing.stuffing.index = 0;
+                span_data_t data = {.a_val = duty / LED_BLINK_BREATHING_RESOLUTION_MS,
+                                    .b_val = duty / LED_BLINK_BREATHING_RESOLUTION_MS + 1,
+                                    .a_cnt = (LED_BLINK_BREATHING_RESOLUTION_MS - remainder),
+                                    .b_cnt = remainder};
+                span(&data, config->states.breathing.stuffing.sequence, LED_BLINK_BREATHING_RESOLUTION_MS);
+            }
+        }
+#endif /* LED_PWM_PULSE_STUFFING */
+    }
+
+    // Time to process the new duty-cycle
+    // Event is generated at a target frequency of 25Hz
+    if (elapsed <= LED_BLINK_BREATHING_RESOLUTION_MS)
+    {
+
+#ifdef LED_PWM_PULSE_STUFFING
+        if(true == config->states.breathing.stuffing.used)
+        {
+            uint8_t index = config->states.breathing.stuffing.index;
+            config->states.breathing.duty_ms = config->states.breathing.stuffing.sequence[index];
+        }
+#endif /* LED_PWM_PULSE_STUFFING */
+
+        if (config->states.breathing.duty_ms == 0)
         {
             led_off(&config->io);
             return;
         }
 
-        if(duty_ms == LED_BLINK_BREATHING_UPDATE_MS)
+        if (config->states.breathing.duty_ms == LED_BLINK_BREATHING_RESOLUTION_MS)
         {
             led_on(&config->io);
             return;
         }
 
-        if(elapsed < duty_ms)
+        if (elapsed < config->states.breathing.duty_ms)
         {
             led_on(&config->io);
         }
@@ -246,7 +319,22 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
     {
         config->last_processed = *time;
         config->states.breathing.step++;
+        config->states.breathing.new_step = true;
         config->states.breathing.step %= LED_BLINK_BREATHING_FULL_CYCLE_STEPS;
+
+#ifdef LED_PWM_PULSE_STUFFING
+        if(config->states.breathing.stuffing.index < (LED_BLINK_BREATHING_RESOLUTION_MS - 1))
+        {
+            // Prevent recomputing
+            config->states.breathing.stuffing.index++;
+            //config->states.breathing.new_step = false;
+        }
+        else
+        {
+            config->states.breathing.stuffing.index = 0;
+        }
+#endif /* LED_PWM_PULSE_STUFFING */
+
     }
 }
 
@@ -289,8 +377,10 @@ uint8_t led_breathing_get_duty_sawtooth(const uint16_t step)
     // Sawtooth implementation, negative ramp (100 to 0)
     else
     {
-        duty = 100 - ((step - (LED_BLINK_BREATHING_HALF_CYCLE_STEPS)) * LED_BLINK_BREATHING_DUTY_CYCLE_INC) / LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR;
+        duty = 100
+               - ((step - (LED_BLINK_BREATHING_HALF_CYCLE_STEPS)) * LED_BLINK_BREATHING_DUTY_CYCLE_INC)
+                     / LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR;
     }
 
-    return (uint8_t) duty;
+    return (uint8_t)duty;
 }

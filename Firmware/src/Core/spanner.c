@@ -1,6 +1,6 @@
 #include "spanner.h"
 #include "stdbool.h"
-#include "memory.h"
+#include "string.h"
 
 static inline void span_first(const span_data_t * data, uint8_t *sequence, const uint8_t length);
 static inline void span_last(const span_data_t * data, uint8_t *sequence, const uint8_t length);
