@@ -50,6 +50,8 @@
 #define TEMP_HYSTERESIS_HIGH 2U     /**> Upper limit of the hysteresis window. If temp gets higher than 2°C above the target temp, we start the compressor  */
 #define TEMP_HYSTERESIS_LOW 2U      /**> Lower limit of the hysteresis window. If temp gets lower than 2°C below the target temp, we stop the compressor    */
 
+//#define DEBUG_SERIAL
+
 // clang-format on
 
 // Pin mapping
@@ -60,7 +62,7 @@ const uint8_t plus_button_pin = 5;   // D5
 
 const uint8_t temp_sensor_pin = A0;     /**> NTC thermistor temperature sensor input pin             */
 const uint8_t current_sensor_pin = A1;  /**> Current sens input pin, sampled @ 500Hz - 1kHz          */
-const uint16_t upper_resistance = 320U; /**> 320 kOhms resistor is used as the upper bridge resistor */
+const uint16_t upper_resistance = 330U; /**> 320 kOhms resistor is used as the upper bridge resistor */
 const uint16_t vcc_mv = 5000U;          /**> Board is powered via USB -> 5V                          */
 
 /**
@@ -168,10 +170,12 @@ void setup()
     }
 
     led_init(leds, 1U);
-    led_set_blink_pattern(0U, LED_BLINK_WARNING);
+    led_set_blink_pattern(0U, LED_BLINK_BREATHING);
 
     sei();
-    // Serial.begin(9600);
+#ifdef DEBUG_SERIAL
+    Serial.begin(9600);
+#endif
 }
 
 void loop()
@@ -412,7 +416,7 @@ static void read_temperature(const mcu_time_t *time, int8_t *temperature)
     static uint32_t last_check_s = 0;
 
     // Only trigger temperature reading if elapsed time is greater than 1 second.
-    if (time->seconds - last_check_s >= 2U)
+    if (time->seconds - last_check_s >= 1U)
     {
         uint16_t temp_reading_raw = analogRead(temp_sensor_pin);
         last_check_s = time->seconds;
@@ -421,8 +425,33 @@ static void read_temperature(const mcu_time_t *time, int8_t *temperature)
         // millivolt reading Also, this remains right under the overflow : (5000 x 10 < UINT16_MAX)
         uint16_t temp_reading_mv = (((vcc_mv * 10U) / 1024) * temp_reading_raw) / 10U;
 
-        uint16_t ntc_resistance = bridge_get_lower_resistance(&upper_resistance, &temp_reading_mv, &vcc_mv);
+        uint16_t ntc_resistance = 0;
+        bridge_get_lower_resistance(&upper_resistance, &temp_reading_mv, &vcc_mv, &ntc_resistance);
+
         *temperature = thermistor_read_temperature(&thermistor_ntc_100k_3950K_data, &ntc_resistance);
+
+#ifdef DEBUG_SERIAL
+        char msg[25] = {0};
+        sprintf(msg, "Temp mv : %u mV\n", temp_reading_mv);
+        Serial.print(msg);
+
+        sprintf(msg, "vcc mv : %u mV\n", vcc_mv);
+        Serial.print(msg);
+
+        sprintf(msg, "upper resistance : %u k\n", upper_resistance);
+        Serial.print(msg);
+
+        sprintf(msg, "Temperature : %d °C\n\n", (int)*temperature);
+        Serial.print(msg);
+
+        sprintf(msg, "ntc res : %u k\n", ntc_resistance);
+        Serial.print(msg);
+
+        sprintf(msg, "Temp raw : %u /1024\n", temp_reading_raw);
+        Serial.print(msg);
+#endif
+
+
     }
 }
 

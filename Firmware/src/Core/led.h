@@ -15,7 +15,7 @@ extern "C" {
 // ################################### LED BLINK BREATHING PATTERN Defines ##############################################
 #define LED_BLINK_BREATHING_PERIOD_S 4U                                                                     /**> LED breathing cycle period                     */
 #define LED_BLINK_BREATHING_HALF_P (LED_BLINK_BREATHING_PERIOD_S / 2U)                                      /**> LED breathing half period                      */
-#define LED_BLINK_BREATHING_FREQ_H 50                                                                       /**> LED breathing base update frequency (Hertz)    */
+#define LED_BLINK_BREATHING_FREQ_H 100                                                                      /**> LED breathing base update frequency (Hertz)    */
 #define LED_BLINK_BREATHING_UPDATE_MS (1000 / LED_BLINK_BREATHING_FREQ_H)                                   /**> LED breathing base update period (millisecond) */
 #define LED_BLINK_BREATHING_HALF_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_HALF_P)      /**> Number of events (steps) for half a period     */
 #define LED_BLINK_BREATHING_FULL_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_PERIOD_S)    /**> Number of events (steps) for the full period   */
