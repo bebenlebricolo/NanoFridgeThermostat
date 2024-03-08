@@ -205,6 +205,10 @@ TEST_F(LedFixture, led_breathing_get_duty_sawtooth_test)
     std::vector<uint8_t> duties;
     for (uint16_t i = 0; i < LED_BLINK_BREATHING_FULL_CYCLE_STEPS; i++)
     {
+        if(i == LED_BLINK_BREATHING_HALF_CYCLE_STEPS)
+        {
+            i = LED_BLINK_BREATHING_HALF_CYCLE_STEPS -1 + 1 ;
+        }
         uint8_t duty = led_breathing_get_duty_sawtooth(i);
         duties.push_back(duty);
     }
@@ -214,6 +218,25 @@ TEST_F(LedFixture, led_breathing_get_duty_sawtooth_test)
     ASSERT_EQ(duties[LED_BLINK_BREATHING_HALF_CYCLE_STEPS * 3 / 2], 50U);
     ASSERT_EQ(duties[LED_BLINK_BREATHING_FULL_CYCLE_STEPS - 1], 1U);
     ASSERT_EQ(duties[0], 0U);
+}
+
+TEST_F(LedFixture, led_get_on_time_ticks_test)
+{
+    constexpr uint8_t resolution = 5U;  // Milliseconds, what we'd get with a 200 Hz frequency
+    constexpr uint8_t duty_inc = 20U;   // Duty cycle increments per point of resolution
+
+    uint8_t test = led_get_on_time_ticks(10, resolution, duty_inc);
+    ASSERT_EQ(test, 1);
+
+    std::vector<std::pair<uint8_t, uint8_t>> duty_on_time_map;
+    for(uint8_t i = 0 ; i <= 100 ; i++)
+    {
+        auto& pair = duty_on_time_map.emplace_back();
+        pair.second = led_get_on_time_ticks(i, resolution, duty_inc);
+        pair.first = i;
+    }
+
+    ASSERT_EQ(duty_on_time_map.size(), 101);
 }
 
 TEST_F(LedFixture, led_process_pattern_breathing_test)

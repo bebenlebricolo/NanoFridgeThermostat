@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-#include "mcu_time.h"
 #include <stdint.h>
+#include "mcu_time.h"
 
 #define MAX_LED_COUNT 1
 
@@ -15,13 +15,14 @@ extern "C" {
 // ################################### LED BLINK BREATHING PATTERN Defines ##############################################
 #define LED_BLINK_BREATHING_PERIOD_S 4U                                                                     /**> LED breathing cycle period                             */
 #define LED_BLINK_BREATHING_HALF_P (LED_BLINK_BREATHING_PERIOD_S / 2U)                                      /**> LED breathing half period                              */
-#define LED_BLINK_BREATHING_FREQ_H 70                                                                      /**> LED breathing base update frequency (Hertz)            */
+#define LED_BLINK_BREATHING_FREQ_H 50                                                                      /**> LED breathing base update frequency (Hertz)            */
 #define LED_BLINK_BREATHING_RESOLUTION_MS (1000 / LED_BLINK_BREATHING_FREQ_H)                               /**> LED PWM Resolution (how many millisecond per "step")   */
 #define LED_BLINK_BREATHING_HALF_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_HALF_P)      /**> Number of events (steps) for half a period             */
 #define LED_BLINK_BREATHING_FULL_CYCLE_STEPS (LED_BLINK_BREATHING_FREQ_H * LED_BLINK_BREATHING_PERIOD_S)    /**> Number of events (steps) for the full period           */
 #define LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR 20
 #define LED_BLINK_BREATHING_DUTY_CYCLE_INC  \
-    ((LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR * 100) / (LED_BLINK_BREATHING_HALF_P * LED_BLINK_BREATHING_FREQ_H))   /**> LED breathing duty cycle increment             */
+    ((LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR * 100) / (LED_BLINK_BREATHING_HALF_P * LED_BLINK_BREATHING_FREQ_H))   /**> LED breathing duty cycle increment  */
+#define LED_BLINK_BREATHING_DUTY_INCREMENT_PER_RESOLUTION_POINT (100 / LED_BLINK_BREATHING_RESOLUTION_MS)   /**> Increment of duty cycle per point of resolution        */
 
 /**
  * @brief Macro used to enable pulse stuffing in software PWM code.
@@ -100,7 +101,21 @@ void led_process(mcu_time_t const *const time);
  */
 void led_set_blink_pattern(const uint8_t led_id, const led_blink_pattern_t pattern);
 
+/**
+ * @brief computes the duty cycle for a sawtooth (dual ramp) with the current step number.
+ * @param[in] step : current step number
+ * @return computed duty cycle (ranging from 0 to 100)
+*/
 uint8_t led_breathing_get_duty_sawtooth(const uint16_t step);
+
+/**
+ * @brief computes the on-time of the LED in ticks based on the input duty cycle (0 - 100%)
+ * @param[in] duty          : input duty cycle (0 - 100)
+ * @param[in] resolution    : resolution of the soft PWM (computed from desired frequency, 200 Hz -> 1000ms/200Hz <=> 5 increments)
+ * @param[in] duty_inc      : duty increment per points of resolution taken (@200Hz, duty_inc = (100 / resolution) <=> 20)
+ * @return on time in current system ticks (milliseconds or microseconds depending on the setup)
+*/
+uint8_t led_get_on_time_ticks(const uint8_t duty, const uint8_t resolution, const uint8_t duty_inc);
 
 #ifdef __cplusplus
 }

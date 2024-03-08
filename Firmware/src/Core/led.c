@@ -1,6 +1,6 @@
-#include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #include "interpolation.h"
 #include "led.h"
@@ -25,12 +25,12 @@ typedef struct
 
         /**
          * @brief breathing LED pattern configuration and trackers
-        */
+         */
         struct
         {
             uint16_t step;   /**> Keeps track of the current duty cycle applied to the LED   */
             bool new_step;   /**> Used to trigger the "new step" event. Some computation is performed only once to save time */
-            uint8_t duty_ms; /**> Currently applied duty cycle : 0 - 100                                                     */
+            uint8_t on_time; /**> Currently applied duty cycle : 0 - 100                                                     */
 
 #ifdef LED_PWM_PULSE_STUFFING
             struct
@@ -230,6 +230,30 @@ static void handle_led_warning(mcu_time_t const *const time, internal_config_t *
     }
 }
 
+
+uint8_t led_get_on_time_ticks(const uint8_t duty, const uint8_t resolution, const uint8_t duty_inc)
+{
+    range_uint8_t input = {.start = 0, .end = 100};
+    range_uint8_t output = {.start = 0, .end = resolution};
+
+    uint8_t on_time = interpolation_linear_uint8_to_uint8(duty, &input, &output);
+
+    // This is to make sure that values like 95 - 99 will be represented as 100 instead of clamped to 90
+    // Otherwise the LED is almost never at full brightness.
+    // It also centers the range where the LED is at N% power :
+    // duty     25  28  32  35  39  43 ... 91 95  98
+    // led pow  30  30  30  40  40  40 ... 90 100 100
+
+    // It's a form of rounding to the nearest decimal
+    uint8_t remainder = (duty % duty_inc);
+    if(remainder >= (duty_inc / 2U))
+    {
+        on_time++;
+    }
+
+    return on_time;
+}
+
 // Current performances (observed with an oscilloscope) :
 // target frequency     25      50      75      100     150     200     225
 // actual frequency     24.6    47.63   71.44   90.92   142.86  166.66  200,07
@@ -244,18 +268,13 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
     if (true == config->states.breathing.new_step)
     {
         uint8_t duty = led_breathing_get_duty_sawtooth(config->states.breathing.step);
+        uint8_t on_time = led_get_on_time_ticks(duty, LED_BLINK_BREATHING_RESOLUTION_MS, LED_BLINK_BREATHING_DUTY_INCREMENT_PER_RESOLUTION_POINT);
 
-        range_uint8_t input = {.start = 0, .end = 100};
-        range_uint8_t output = {.start = 0, .end = LED_BLINK_BREATHING_RESOLUTION_MS};
-
-        uint8_t duty_ms = 0;
-        duty_ms = interpolation_linear_uint8_to_uint8(duty, &input, &output);
-
-        config->states.breathing.duty_ms = duty_ms;
+        config->states.breathing.on_time = on_time;
         config->states.breathing.new_step = false;
 
 #ifdef LED_PWM_PULSE_STUFFING
-        if(duty_ms / LED_BLINK_BREATHING_RESOLUTION_MS != config->states.breathing.duty_ms / LED_BLINK_BREATHING_RESOLUTION_MS)
+        if (on_time / LED_BLINK_BREATHING_RESOLUTION_MS != config->states.breathing.on_time / LED_BLINK_BREATHING_RESOLUTION_MS)
         {
             // Only recompute if we are moving to a new multiple (e.g. 3x to 4x)
             uint8_t remainder = duty % LED_BLINK_BREATHING_RESOLUTION_MS;
@@ -285,26 +304,26 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
     {
 
 #ifdef LED_PWM_PULSE_STUFFING
-        if(true == config->states.breathing.stuffing.used)
+        if (true == config->states.breathing.stuffing.used)
         {
             uint8_t index = config->states.breathing.stuffing.index;
-            config->states.breathing.duty_ms = config->states.breathing.stuffing.sequence[index];
+            config->states.breathing.on_time = config->states.breathing.stuffing.sequence[index];
         }
 #endif /* LED_PWM_PULSE_STUFFING */
 
-        if (config->states.breathing.duty_ms == 0)
+        if (config->states.breathing.on_time == 0)
         {
             led_off(&config->io);
             return;
         }
 
-        if (config->states.breathing.duty_ms == LED_BLINK_BREATHING_RESOLUTION_MS)
+        if (config->states.breathing.on_time == LED_BLINK_BREATHING_RESOLUTION_MS)
         {
             led_on(&config->io);
             return;
         }
 
-        if (elapsed < config->states.breathing.duty_ms)
+        if (elapsed < config->states.breathing.on_time)
         {
             led_on(&config->io);
         }
@@ -323,18 +342,17 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
         config->states.breathing.step %= LED_BLINK_BREATHING_FULL_CYCLE_STEPS;
 
 #ifdef LED_PWM_PULSE_STUFFING
-        if(config->states.breathing.stuffing.index < (LED_BLINK_BREATHING_RESOLUTION_MS - 1))
+        if (config->states.breathing.stuffing.index < (LED_BLINK_BREATHING_RESOLUTION_MS - 1))
         {
             // Prevent recomputing
             config->states.breathing.stuffing.index++;
-            //config->states.breathing.new_step = false;
+            // config->states.breathing.new_step = false;
         }
         else
         {
             config->states.breathing.stuffing.index = 0;
         }
 #endif /* LED_PWM_PULSE_STUFFING */
-
     }
 }
 
@@ -370,16 +388,16 @@ uint8_t led_breathing_get_duty_sawtooth(const uint16_t step)
 {
     uint16_t duty = 0;
     // Sawtooth implementation, positive ramp (0 to 100)
-    if (step <= LED_BLINK_BREATHING_HALF_CYCLE_STEPS)
+    if (step < LED_BLINK_BREATHING_HALF_CYCLE_STEPS)
     {
         duty = (step * LED_BLINK_BREATHING_DUTY_CYCLE_INC) / (LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR);
     }
     // Sawtooth implementation, negative ramp (100 to 0)
     else
     {
-        duty = 100
-               - ((step - (LED_BLINK_BREATHING_HALF_CYCLE_STEPS)) * LED_BLINK_BREATHING_DUTY_CYCLE_INC)
-                     / LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR;
+        duty = ((step - (LED_BLINK_BREATHING_HALF_CYCLE_STEPS)) * LED_BLINK_BREATHING_DUTY_CYCLE_INC);
+        duty /= LED_BLINK_BREATHING_DUTY_CYCLE_INC_ALIASING_FACTOR;
+        duty = 100 - duty;
     }
 
     return (uint8_t)duty;

@@ -2,6 +2,7 @@
 - [Readme's Index](#readmes-index)
 - [Nano Fridge Thermostat](#nano-fridge-thermostat)
 - [Nano Thermostat V2](#nano-thermostat-v2)
+- [Known issues on V2 board](#known-issues-on-v2-board)
 - [Git submodules setup (Optional, used for hardware development)](#git-submodules-setup-optional-used-for-hardware-development)
   - [Screenshots (view taken before manufacturing)](#screenshots-view-taken-before-manufacturing)
 - [Hardware design](#hardware-design)
@@ -41,6 +42,11 @@ More details can be found in the [NanoThermostat-V2](NanoThermostat-V2) folder.
 
 A custom PCB was designed for this board (as the electrical design became more and more crowded with components and functionalities).
 It can be found under the [Hardware](Hardware/) folder, and I used KiCAD 7 to design the boards.
+
+# Known issues on V2 board
+This applies to the git tag **hardware-V2.0.0-to-fab**
+* Swapped buttons (silkscreen is "right" but - button actually is on the right and + button is on the left)
+  * We only need to rewire them correctly :smile:
 
 # Git submodules setup (Optional, used for hardware development)
 In order for this project to be usable (especially to get all the footprints here), you'll need to initialise and download git submodules.

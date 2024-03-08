@@ -164,7 +164,7 @@ TEST_F(InterpolationFixture, linear_interpolate_uint8_to_uint8_small_output_rang
     // Emulates temperatures (rising temps with decreasing resistance)
     range_uint8_t output = {
         .start = 0,
-        .end = 9
+        .end = 10
     };
 
     uint8_t value = 34;
@@ -177,7 +177,11 @@ TEST_F(InterpolationFixture, linear_interpolate_uint8_to_uint8_small_output_rang
 
     value = 81;
     result = interpolation_linear_uint8_to_uint8(value, &input, &output);
-    ASSERT_EQ(result, 7);
+    ASSERT_EQ(result, 8);
+
+    value = 100;
+    result = interpolation_linear_uint8_to_uint8(value, &input, &output);
+    ASSERT_EQ(result, 10);
 }
 
 
