@@ -12,6 +12,8 @@ add_library(core STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/current.h
     ${CMAKE_CURRENT_SOURCE_DIR}/led.h
     ${CMAKE_CURRENT_SOURCE_DIR}/led.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/spanner.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/spanner.h
     ${CMAKE_CURRENT_SOURCE_DIR}/mcu_time.h
     ${CMAKE_CURRENT_SOURCE_DIR}/mcu_time.c
     ${CMAKE_CURRENT_SOURCE_DIR}/thermistor.c
