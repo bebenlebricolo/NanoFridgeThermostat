@@ -19,18 +19,24 @@ BraceWrapping:
 AllowShortFunctionsOnASingleLine: Empty
 
 BreakBeforeBraces: Custom
-BreakBeforeBinaryOperators: All
+#BreakBeforeBinaryOperators: All
 AlignEscapedNewlines: Right
 AlignTrailingComments: Always
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
 
+BreakBeforeBinaryOperators: NonAssignment
 ColumnLimit : 150
 ReflowComments: true
 PenaltyBreakComment: 0
 #AllowAllParametersOfDeclarationOnNextLine: false
-#BinPackParameters : true
+ExperimentalAutoDetectBinPacking: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+BinPackParameters : true
 BinPackArguments: true
 AlignAfterOpenBracket: Align
-
+PointerAlignment: Left
 # For C++ only
 AccessModifierOffset: -4
 IndentAccessModifiers: false

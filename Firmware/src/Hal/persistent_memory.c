@@ -1,6 +1,7 @@
 #include "persistent_memory.h"
-#include <avr/eeprom.h>
 #include <stdlib.h>
+
+#include <avr/eeprom.h>
 
 void persistent_mem_read_config(persistent_config_t * config)
 {
@@ -9,7 +10,7 @@ void persistent_mem_read_config(persistent_config_t * config)
 
 void persistent_mem_write_config(persistent_config_t const * const config)
 {
-    eeprom_write_block((const void*) EEPROM_START_OFFSET, (void *) config, sizeof(config));
+    eeprom_write_block((void *) config, (const void*) EEPROM_START_OFFSET, sizeof(persistent_config_t));
 }
 
 bool persistent_mem_is_first_boot(const uint8_t header_cst, const uint8_t footer_cst)

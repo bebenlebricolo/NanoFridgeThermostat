@@ -76,6 +76,25 @@ typedef struct
     uint8_t pin;            /**> Specifies the LED IO id (0 to 7)                                    */
 } led_io_t;
 
+typedef enum
+{
+    LED_NEXT_EVENT_PATTERN,     /**> Specifies that a led will transition from a pattern to another one when the first one is over (e.g. "ACCEPT" pattern)  */
+    LED_NEXT_EVENT_IO_STATE,    /**> Specifies that a led will transition from a pattern to a constant IO state when the pattern execution is over          */
+    LED_NEXT_EVENT_NONE         /**> Won't be affected, reverts states to default and does not drive output IO                                              */
+} led_next_event_kind_t;
+
+typedef union
+{
+    led_blink_pattern_t pattern;
+    uint8_t io_state;
+} led_next_event_data_t;
+
+typedef struct
+{
+    led_next_event_kind_t kind;
+    led_next_event_data_t data;
+}led_next_event_t;
+
 /**
  * @brief initializes the config parameter to default values.
  */
@@ -100,6 +119,13 @@ void led_process(mcu_time_t const *const time);
  * @brief changes the blink pattern for a single led
  */
 void led_set_blink_pattern(const uint8_t led_id, const led_blink_pattern_t pattern);
+
+/**
+ * @brief sets next led event (to be processed once the current pattern is over)
+ * @param[in] led_id : led index as per registered in the driver
+ * @param[in] event  : the event that'll be used when the current pattern of the LED is over.
+*/
+void led_set_next_event(const uint8_t led_id, const led_next_event_t * event);
 
 /**
  * @brief computes the duty cycle for a sawtooth (dual ramp) with the current step number.

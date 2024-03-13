@@ -13,7 +13,7 @@ void button_local_mem_default(button_local_mem_t *button)
 
 void read_single_button_event(button_local_mem_t *const button, uint32_t const *const time)
 {
-    if (button->current == HIGH)
+    if (button->current == LOW)
     {
         // Start of long press, count press duration
         if (button->current == button->previous)

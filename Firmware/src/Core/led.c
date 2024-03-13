@@ -16,9 +16,11 @@ typedef struct
     mcu_time_t last_processed; /**> Last time this LED was processed (used to perform soft PWM)*/
     struct
     {
-        led_blink_pattern_t current;  /**> Current LED Pattern (used to trigger state changed events) */
-        led_blink_pattern_t previous; /**> Previous LED Pattern (used to trigger state changed events)*/
+        led_blink_pattern_t current;  /**> Current LED Pattern (used to trigger state changed events)                                       */
+        led_blink_pattern_t previous; /**> Previous LED Pattern (used to trigger state changed events)                                      */
     } patterns;
+
+    led_next_event_t event; /**> Event that'll be triggered when the LED pattern is finished processing (some of the patterns have a limited life)  */
 
     struct
     {
@@ -60,9 +62,10 @@ static void handle_led_warning(mcu_time_t const *const time, internal_config_t *
 static void handle_led_breathing(mcu_time_t const *const time, internal_config_t *const config);
 static void get_elapsed_milliseconds(mcu_time_t const *const time, internal_config_t *const config, uint32_t *const elapsed);
 
-static void led_on(led_io_t *const config);
-static void toggle_led(led_io_t *const config);
-static void led_off(led_io_t *const config);
+static void led_on(led_io_t *const io);
+static void led_set_io(led_io_t *const io, uint8_t state);
+static void toggle_led(led_io_t *const io);
+static void led_off(led_io_t *const io);
 
 void led_static_config_default(led_io_t *io)
 {
@@ -79,6 +82,8 @@ void led_reset(void)
         time_default(&internal_config[i].last_processed);
         internal_config[i].patterns.current = LED_BLINK_NONE;
         internal_config[i].patterns.previous = LED_BLINK_NONE;
+        internal_config[i].event.kind = LED_NEXT_EVENT_NONE;
+        internal_config[i].event.data.io_state = 0;
     }
 }
 
@@ -131,6 +136,18 @@ void led_set_blink_pattern(const uint8_t led_id, const led_blink_pattern_t patte
             break;
     }
 }
+
+void led_set_next_event(const uint8_t led_id, const led_next_event_t * event)
+{
+    if (led_id >= MAX_LED_COUNT)
+    {
+        return;
+    }
+
+    internal_config_t *config = &internal_config[led_id];
+    config->event = *event;
+}
+
 
 void led_process(mcu_time_t const *const time)
 {
@@ -194,7 +211,22 @@ static void handle_led_accept(mcu_time_t const *const time, internal_config_t *c
     if (config->states.accept.count >= LED_BLINK_ACCEPT_FLASHES)
     {
         config->states.accept.count = 0;
-        config->patterns.current = LED_BLINK_NONE;
+        switch(config->event.kind)
+        {
+            case LED_NEXT_EVENT_IO_STATE:
+                led_set_io(&config->io, config->event.data.io_state);
+                config->patterns.current = LED_BLINK_NONE;
+                break;
+
+            case LED_NEXT_EVENT_PATTERN:
+                config->patterns.current = config->event.data.pattern;
+                break;
+
+            default:
+                config->patterns.current = LED_BLINK_NONE;
+                break;
+        }
+        config->event.kind = LED_NEXT_EVENT_NONE;
         return;
     }
 
@@ -356,19 +388,33 @@ static void handle_led_breathing(mcu_time_t const *const time, internal_config_t
     }
 }
 
-static void led_on(led_io_t *const config)
+static void led_on(led_io_t *const io)
 {
-    *config->port |= (1 << config->pin);
+    *io->port |= (1 << io->pin);
 }
 
-static void toggle_led(led_io_t *const config)
+static void led_set_io(led_io_t *const io, uint8_t state)
 {
-    *config->port ^= (1 << config->pin);
+    if(state != 0)
+    {
+        led_on(io);
+    }
+    else
+    {
+        led_off(io);
+    }
 }
 
-static void led_off(led_io_t *const config)
+
+static void toggle_led(led_io_t *const io)
 {
-    *config->port &= ~(1 << config->pin);
+    *io->port ^= (1 << io->pin);
+}
+
+
+static void led_off(led_io_t *const io)
+{
+    *io->port &= ~(1 << io->pin);
 }
 
 static void get_elapsed_milliseconds(mcu_time_t const *const time, internal_config_t *const config, uint32_t *const elapsed)
