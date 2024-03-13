@@ -10,7 +10,7 @@ extern "C"
 
 #define CURRENT_MEASURE_SAMPLES_PER_SINE 20U
 #define CURRENT_MEASURE_GAIN 10U
-#define CURRENT_RMS_ARBITRARY_FCT
+#define CURRENT_RMS_ARBITRARY_FCT 0
 /**
  * @brief Computes current RMS over a sliding window (N last samples, @see CURRENT_MEASURE_SAMPLES_PER_SINE)
  * @param[in]   current_ma  : current reading in milliamperes
@@ -18,7 +18,7 @@ extern "C"
 */
 void current_compute_rms_sine(uint16_t const * const current_ma, uint16_t * const out_rms_ma);
 
-#ifdef CURRENT_RMS_ARBITRARY_FCT
+#if CURRENT_RMS_ARBITRARY_FCT
 
 void current_compute_rms_arbitrary(uint16_t const * const current_ma, uint16_t * const out_rms_ma, uint16_t const * const dc_offset);
 

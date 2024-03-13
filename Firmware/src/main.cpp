@@ -14,7 +14,6 @@
 #include "Hal/persistent_memory.h"
 #include "Hal/timebase.h"
 
-// #define F_CPU 16000000
 
 // clang-format off
 // -> Clang has troubles treating multiline macros comments
@@ -229,8 +228,14 @@ void loop()
     read_current(time, &current_ma);
     // Temperature is read once every 2 seconds
     read_temperature(time, &temperature);
+    uint16_t current_rms = 0;
 
-    uint16_t current_rms = read_current_fake_rms(&current_ma);
+#if CURRENT_RMS_ARBITRARY_FCT == 1
+    uint16_t dc_offset_current = 300;
+    current_compute_rms_arbitrary(&current_ma, &current_rms, &dc_offset_current);
+#else
+    current_compute_rms_sine(&current_ma, &current_rms);
+#endif
 
     // Process button events.
     // Used to trigger
