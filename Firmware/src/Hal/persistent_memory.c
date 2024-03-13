@@ -18,5 +18,5 @@ bool persistent_mem_is_first_boot(const uint8_t header_cst, const uint8_t footer
     const uint8_t eep_header = eeprom_read_byte((const uint8_t*) (EEPROM_START_OFFSET + PERM_STORE_HEADER_IDX));
     const uint8_t eep_footer = eeprom_read_byte((const uint8_t*) (EEPROM_START_OFFSET + PERM_STORE_FOOTER_IDX));
 
-    return (header_cst == eep_header) && (footer_cst == eep_footer);
+    return (header_cst != eep_header) || (footer_cst != eep_footer);
 }
