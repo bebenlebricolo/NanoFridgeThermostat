@@ -14,7 +14,6 @@
 #include "Hal/persistent_memory.h"
 #include "Hal/timebase.h"
 
-
 // clang-format off
 // -> Clang has troubles treating multiline macros comments
 // https://github.com/llvm/llvm-project/issues/54399
@@ -38,6 +37,7 @@
                                             /**> it's normal operation mode                                             */
 
 #define STALLED_MOTOR_WAIT_MINUTES 5U       /**> How long we'll need to wait between motor starts when motor is stalled */
+#define STALLED_MOTOR_WAIT_SECONDS (STALLED_MOTOR_WAIT_MINUTES * 60U)  /**> Same as above in seconds                    */
 
 #define MAINS_AC_FREQUENCY_HZ 50U           /**> Mains outlet AC frequency (50 Hz in France)                            */
 
@@ -105,8 +105,9 @@ typedef struct
      */
     union
     {
-        uint32_t stalled_cond_time; /**> Keeps track of the stalled condition start in time */
-        uint32_t motor_start_time;  /**> Keeps track of the time where motor was started    */
+        uint32_t stalled_cond_time;  /**> Keeps track of the stalled condition start in time */
+        uint32_t motor_start_time;   /**> Keeps track of the time where motor was started    */
+        uint32_t motor_stopped_time; /**> Keeps track of the time where motor was shut off  */
     } tracking;
 
     /**
@@ -150,13 +151,6 @@ static void        set_motor_output(const uint8_t value);
 static bool        is_motor_started(void);
 static void        read_current(const mcu_time_t* time, uint16_t* current_ma);
 static void        read_temperature(const mcu_time_t* time, int8_t* temperature);
-
-/**
- * @brief returns a fake RMS of the last 20 samples -> 20*50Hz = 1kHz.
- * Ideally we should use between 10 to 20 samples to represent a full sine wave
- * at 50Hz, so we would need to sample at around 500Hz - 1kHz.
- */
-static uint16_t read_current_fake_rms(uint16_t const* const current_ma);
 
 void setup()
 {
@@ -314,23 +308,6 @@ void loop()
         LOG_CUSTOM("config.current_threshold : %hu mA\n\n", config.current_threshold);
     }
 #endif
-
-    // Read temp
-    // Process (filter) temp reading -> hysteresis
-    // Read current
-    // Process current reading
-
-    // If motor current is too high, increment motor_current_high_seconds
-    // counter for it Then if that counter goes above 3 seconds, we set the
-    // forced stalled flag and reset the counter back to 0
-    // -> We enter a "safe" loop where compressor won't be triggered
-
-    // if temp is not in appropriate range
-    //      -> Cooling is required
-    // else, do nothing
-
-    // Then, if already cooling and motor current was too high for at least 5
-    // seconds,
 }
 
 static void read_buttons_events(button_state_t* const plus_button_event, button_state_t* const minus_button_event, const mcu_time_t* time)
@@ -358,43 +335,11 @@ static void read_buttons_events(button_state_t* const plus_button_event, button_
     *minus_button_event = minus_button_mem.event;
 }
 
-// Note : very naive implementation
-static uint16_t read_current_fake_rms(uint16_t const* const current_ma)
-{
-    static uint16_t data[SAMPLES_PER_SINE];
-    static uint8_t  index = 0;
-
-    // Circular buffer
-    data[index] = *current_ma;
-    index       = (index + 1) % SAMPLES_PER_SINE;
-
-    uint16_t max = 0;
-    uint16_t min = 0;
-
-    for (uint8_t i = 0; i < SAMPLES_PER_SINE; i++)
-    {
-        if (data[i] > max)
-        {
-            max = data[i];
-        }
-        if (data[i] < min)
-        {
-            min = data[i];
-        }
-    }
-
-    uint16_t peak_to_peak = max - min;
-    uint16_t magnitude    = peak_to_peak / 2U;
-
-    // Removing alias again on sqrt(2) with small(er) error margin
-    return (magnitude * 10U) / 14U;
-}
-
 static app_state_t handle_motor_stalled_loop(uint32_t const* const start_time, const mcu_time_t* time)
 {
     // Wait for 5 minutes before exiting this state
     uint32_t elapsed_time = time->seconds - *start_time;
-    if (elapsed_time >= 5U * 60U)
+    if (elapsed_time >= STALLED_MOTOR_WAIT_SECONDS)
     {
         LOG("Motor stalled timeout condition reached -> Reverting to normal mode.\n");
         // Revert to normal operation mode
@@ -420,10 +365,7 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, uint1
         persistent_mem_write_config(&config);
         led_set_blink_pattern(led_driver_index, LED_BLINK_ACCEPT);
 
-        led_next_event_t event = {
-            .kind = LED_NEXT_EVENT_PATTERN,
-            .data = {.pattern = LED_BLINK_BREATHING}
-        };
+        led_next_event_t event = {.kind = LED_NEXT_EVENT_PATTERN, .data = {.pattern = LED_BLINK_BREATHING}};
         led_set_next_event(led_driver_index, &event);
 
         if (is_motor_started())
@@ -439,10 +381,7 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, uint1
     {
         config.current_threshold = *current_rms;
         led_set_blink_pattern(led_driver_index, LED_BLINK_ACCEPT);
-        led_next_event_t event = {
-            .kind = LED_NEXT_EVENT_IO_STATE,
-            .data = {.io_state = (uint8_t) HIGH}
-        };
+        led_next_event_t event = {.kind = LED_NEXT_EVENT_IO_STATE, .data = {.io_state = (uint8_t)HIGH}};
         led_set_next_event(led_driver_index, &event);
 
         persistent_mem_write_config(&config);
@@ -466,16 +405,28 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, uint1
     // Simple hysteresis to control the compressor based on a target temperature
     if (!is_motor_started() && (temperature > (int8_t)(config.target_temperature + TEMP_HYSTERESIS_HIGH)))
     {
-        // Start the compressor
-        LOG("Starting motor : temperature is high enough.\n");
-        set_motor_output(HIGH);
+        uint32_t elapsed_seconds = (time->seconds - app_mem->tracking.motor_stopped_time);
+
+        // Don't try to restart the motor right after a stop, need to wait for pressure to equalize in the system
+        // Otherwise we might run in the motor stalled condition
+        if (elapsed_seconds >= STALLED_MOTOR_WAIT_MINUTES)
+        {
+            // Start the compressor
+            LOG("Starting motor : temperature is high enough.\n");
+            set_motor_output(HIGH);
+            app_mem->tracking.motor_start_time = time->seconds;
+        }
+        else
+        {
+            led_set_blink_pattern(led_driver_index, LED_BLINK_BREATHING);
+        }
     }
     else if (is_motor_started() && (temperature < (int8_t)(config.target_temperature - TEMP_HYSTERESIS_LOW)))
     {
         LOG("Stopping motor : temperature is low enough.\n");
         // Stop the compressor
         set_motor_output(LOW);
-        app_mem->tracking.motor_start_time = time->seconds;
+        app_mem->tracking.motor_stopped_time = time->seconds;
     }
 }
 
