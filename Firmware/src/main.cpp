@@ -54,6 +54,7 @@
 #define DEBUG_REPORT_PERIODIC 1
 #if DEBUG_REPORT_PERIODIC == 1
     #define DEBUG_REPORT_PERIOD_SECONDS 1U
+    #define DEBUG_REPORT_PERIOD_SECONDS_MOTOR_RESTART_ETA 10U
 #endif
 #define FORCE_OVERWRITE_EEPROM 0
 
@@ -89,16 +90,16 @@ const uint8_t led_driver_index = 0U;
  */
 typedef enum
 {
-    APP_STATE_NORMAL,         /**> Normal fridge operation                                                          */
-    APP_STATE_POST_BOOT_WAIT, /**> Post boot time window waits for 5 seconds without triggering the compressor.
-                                   This allows the user to enter the Learning mode when exiting the boot.           */
-    APP_STATE_MOTOR_STALLED   /**> Motor stalled condition was detected, waiting for 5 minutes before trying again  */
+    APP_STATE_NORMAL,             /**> Normal fridge operation                                                                                  */
+    APP_STATE_POST_BOOT_WAIT,     /**> Post boot time window waits for 5 seconds without triggering the compressor.
+                                       This allows the user to enter the Learning mode when exiting the boot.                                   */
+    APP_STATE_MOTOR_STALLED,      /**> Motor stalled condition was detected, waiting for 5 minutes before trying again                          */
+    APP_STATE_WAITING_START_MOTOR /**> We are waiting before restarting the motor. This is done before we run into the MOTOR STALLED condition  */
 } app_state_t;
 
 typedef struct
 {
     app_state_t app_state; /**> Tracks application current state                                               */
-
     /**
      * @brief maps the start time conditions in a union
      * (because we are only using one value at a time, they are mutually exclusive)
@@ -286,6 +287,7 @@ void loop()
 
         case APP_STATE_POST_BOOT_WAIT:
         case APP_STATE_NORMAL:
+        case APP_STATE_WAITING_START_MOTOR:
         default: {
             handle_normal_operation_loop(&app_mem, &current_rms, temperature, time);
             break;
@@ -370,7 +372,7 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, uint1
 
         if (is_motor_started())
         {
-            // Rest the tracker so that we start counting from now on
+            // Reset the tracker so that we start counting from now on
             app_mem->tracking.motor_start_time = time->seconds;
         }
     }
@@ -407,18 +409,38 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, uint1
     {
         uint32_t elapsed_seconds = (time->seconds - app_mem->tracking.motor_stopped_time);
 
+        // app_mem->tracking.motor_start_time == 0 -> Checks if we have just booted
+        // That's the only case where we can bypass the "waiting" period as we have no clue
+        // It means that we have just booted for the first time and we'll need to discover whether the motor can be driven or not
+        // Otherwise :
         // Don't try to restart the motor right after a stop, need to wait for pressure to equalize in the system
         // Otherwise we might run in the motor stalled condition
-        if (elapsed_seconds >= STALLED_MOTOR_WAIT_MINUTES)
+        if (app_mem->tracking.motor_start_time == 0 || elapsed_seconds >= /* STALLED_MOTOR_WAIT_SECONDS */ 10)
         {
             // Start the compressor
             LOG("Starting motor : temperature is high enough.\n");
             set_motor_output(HIGH);
             app_mem->tracking.motor_start_time = time->seconds;
+            led_set_blink_pattern(led_driver_index, LED_BLINK_NONE);
         }
         else
         {
-            led_set_blink_pattern(led_driver_index, LED_BLINK_BREATHING);
+            // Only called once when we transition to this new state
+            if (APP_STATE_WAITING_START_MOTOR != app_mem->app_state)
+            {
+                led_set_blink_pattern(led_driver_index, LED_BLINK_BREATHING);
+                app_mem->app_state = APP_STATE_WAITING_START_MOTOR;
+            }
+
+#ifdef DEBUG_REPORT_PERIODIC
+            // Print periodically the current waiting status
+            static uint32_t last_print_time = 0;
+            if((time->seconds - last_print_time) >= DEBUG_REPORT_PERIOD_SECONDS_MOTOR_RESTART_ETA)
+            {
+                LOG_CUSTOM("Waiting to restart motor. ETA : %u seconds.\n", (STALLED_MOTOR_WAIT_SECONDS - elapsed_seconds));
+                last_print_time = time->seconds;
+            }
+#endif
         }
     }
     else if (is_motor_started() && (temperature < (int8_t)(config.target_temperature - TEMP_HYSTERESIS_LOW)))
