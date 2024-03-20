@@ -55,7 +55,7 @@ TEST_F(CurrentFixture, current_compute_rms_sine_test)
 
 }
 
-#ifdef CURRENT_RMS_ARBITRARY_FCT
+#if CURRENT_RMS_ARBITRARY_FCT
 TEST_F(CurrentFixture, current_compute_rms_arbitrary_test)
 {
     constexpr double magnitude = 1000;
