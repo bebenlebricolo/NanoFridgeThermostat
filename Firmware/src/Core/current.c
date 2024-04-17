@@ -1,31 +1,31 @@
 #include "current.h"
 
 #if CURRENT_RMS_ARBITRARY_FCT
-static void int_sqrt(uint32_t const* const input, uint32_t* const out);
+static void int_sqrt(int32_t const* const input, int32_t* const out);
 #endif
 
-static uint16_t data[CURRENT_MEASURE_SAMPLES_PER_SINE] = {0};
+static int16_t data[CURRENT_MEASURE_SAMPLES_PER_SINE] = {0};
 static uint8_t  index                                  = 0;
 static uint8_t  capacity                               = 0;
 
-void current_from_voltage(uint16_t const* const reading_mv, uint16_t* const out_current_ma)
+#define SQRT_2X100 141
+
+void current_from_voltage(int16_t const* const reading_mv, int16_t* const out_current_ma)
 {
-    // Usually we have a 1V for 1A CT with burden resistor couple.
-    // As we are reading millivolt -> current_reading_mv / 1000 gives us
-    // current_reading_volts <=> current_reading_amps and as we'd like to read
-    // milliamps we need to multiply current_reading_amps : both /1000 and *
-    // 1000 cancel each other out. However, we are using a dual stage amplifier
-    // to accommodate for lower voltages. So we need to take that gain into
-    // account for the final calculation :
-    *out_current_ma = *reading_mv / CURRENT_MEASURE_GAIN;
+    // Usually we have a 0.1V for 1A CT with burden resistor couple.
+    // Total gain of the 2 stages amp is around 30.
+    // Multiplying by 10
+
+    *out_current_ma = CURRENT_TRANSFORMER_INV_RATIO * (*reading_mv / (int16_t)(CURRENT_MEASURE_GAIN));
 }
 
 // Note : very naive implementation
-void current_compute_rms_sine(uint16_t const* const current_ma, uint16_t* const out_rms_ma)
+void current_compute_rms_sine(int16_t const* const current_ma, int16_t* const out_rms_ma)
 {
     uint8_t max_idx = 0;
     uint8_t min_idx = 0;
 
+    // Store new input data in RMS buffer
     data[index] = *current_ma;
     index       = (index + 1) % CURRENT_MEASURE_SAMPLES_PER_SINE;
 
@@ -34,6 +34,7 @@ void current_compute_rms_sine(uint16_t const* const current_ma, uint16_t* const 
         capacity++;
     }
 
+    // Find min and max values in stored buffer
     for (uint8_t i = 0; i < capacity; i++)
     {
         if (data[i] > data[max_idx])
@@ -46,16 +47,16 @@ void current_compute_rms_sine(uint16_t const* const current_ma, uint16_t* const 
         }
     }
 
-    uint16_t peak_to_peak = data[max_idx] - data[min_idx];
-    uint16_t magnitude    = peak_to_peak / 2U;
+    int16_t peak_to_peak = data[max_idx] - data[min_idx];
+    int16_t magnitude    = peak_to_peak / 2;
 
     // Removing alias again on sqrt(2) with small(er) error margin
-    *out_rms_ma = (magnitude * 100U) / 141U;
+    *out_rms_ma = (magnitude * 100) / SQRT_2X100;
 }
 
 #if CURRENT_RMS_ARBITRARY_FCT
 // Note : very naive implementation
-void current_compute_rms_arbitrary(uint16_t const* const current_ma, uint16_t* const out_rms_ma, uint16_t const* const dc_offset_current)
+void current_compute_rms_arbitrary(int16_t const* const current_ma, int16_t* const out_rms_ma, int16_t const* const dc_offset_current)
 {
     // Circular buffer
     data[index] = *current_ma;
@@ -83,11 +84,11 @@ void current_compute_rms_arbitrary(uint16_t const* const current_ma, uint16_t* c
     uint32_t ac_rms = 0;
     intermediate    = (global_rms_current * global_rms_current) - (uint32_t)(*dc_offset_current * *dc_offset_current);
     int_sqrt(&intermediate, &ac_rms);
-    *out_rms_ma = (uint16_t)ac_rms;
+    *out_rms_ma = (int16_t)ac_rms;
 }
 
 // Square root of integer
-static void int_sqrt(uint32_t const* const input, uint32_t* const out)
+static void int_sqrt(int32_t const* const input, int32_t* const out)
 {
     // Zero yields zero
     // One yields one

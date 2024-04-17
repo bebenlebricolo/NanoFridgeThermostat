@@ -9,18 +9,19 @@ extern "C"
 #include <stdint.h>
 
 #define CURRENT_MEASURE_SAMPLES_PER_SINE 20U
-#define CURRENT_MEASURE_GAIN 10U
+#define CURRENT_MEASURE_GAIN 25
+#define CURRENT_TRANSFORMER_INV_RATIO 10  /**> Current Transformer has a 1000:1 turn ratio, with a 0.1V/1A spec, so invert that*/
 #define CURRENT_RMS_ARBITRARY_FCT 0
 /**
  * @brief Computes current RMS over a sliding window (N last samples, @see CURRENT_MEASURE_SAMPLES_PER_SINE)
  * @param[in]   current_ma  : current reading in milliamperes
  * @param[out]  out_rms_ma  : output RMS reading in milliamperes
 */
-void current_compute_rms_sine(uint16_t const * const current_ma, uint16_t * const out_rms_ma);
+void current_compute_rms_sine(int16_t const * const current_ma, int16_t * const out_rms_ma);
 
 #if CURRENT_RMS_ARBITRARY_FCT
 
-void current_compute_rms_arbitrary(uint16_t const * const current_ma, uint16_t * const out_rms_ma, uint16_t const * const dc_offset);
+void current_compute_rms_arbitrary(int16_t const * const current_ma, int16_t * const out_rms_ma, int16_t const * const dc_offset);
 
 #endif
 
@@ -29,7 +30,7 @@ void current_compute_rms_arbitrary(uint16_t const * const current_ma, uint16_t *
  * @param[in]   reading_mv      : input voltage (millivolts), read from current transformer + dual staged amplifier
  * @param[out]  out_current_ma  : converted result in milliamperes.
 */
-void current_from_voltage(uint16_t const * const reading_mv, uint16_t * const out_current_ma);
+void current_from_voltage(int16_t const * const reading_mv, int16_t * const out_current_ma);
 
 
 #ifdef __cplusplus

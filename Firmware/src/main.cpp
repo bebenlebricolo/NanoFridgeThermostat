@@ -25,7 +25,6 @@
 #define PERMANENT_STORAGE_HEADER 0xDE
 #define PERMANENT_STORAGE_FOOTER 0xAD
 
-#define AMP_GAIN 10U                        /**> Hardware 2 stage amplifier gain                                        */
 
 #define SAMPLES_PER_SINE  20U               /**> How many samples we are using to depict a full sine wave.              */
                                             /**> Appropriate values might range from 10 to 20                           */
@@ -45,6 +44,7 @@
 
 // Compiles down to constant anyway !
 #define CURRENT_SENSOR_CHECK_PERIOD_MS uint8_t(1000 / CURRENT_SENSOR_CHECK_RATE)        /**> Current sensor check time period in milliseconds (between 2 sensor reads) */
+#define CURRENT_SENSE_DC_BIAS_MV 2390
 
 #define TEMP_HYSTERESIS_HIGH 2U     /**> Upper limit of the hysteresis window. If temp gets higher than 2°C above the target temp, we start the compressor  */
 #define TEMP_HYSTERESIS_LOW 2U      /**> Lower limit of the hysteresis window. If temp gets lower than 2°C below the target temp, we stop the compressor    */
@@ -56,7 +56,7 @@
     #define DEBUG_REPORT_PERIOD_SECONDS 1U
     #define DEBUG_REPORT_PERIOD_SECONDS_MOTOR_RESTART_ETA 10U
 #endif
-#define FORCE_OVERWRITE_EEPROM 0
+#define FORCE_OVERWRITE_EEPROM 1
 
 #ifdef DEBUG_SERIAL
     #define MSG_LENGTH 50U
@@ -146,11 +146,11 @@ static led_io_t leds[1U] = {{.port = &PORTD, .pin = status_led_pin}};
 static void read_buttons_events(button_state_t* const plus_button_event, button_state_t* const minus_button_event, const mcu_time_t* time);
 
 static app_state_t handle_motor_stalled_loop(uint32_t const* const start_time, const mcu_time_t* time);
-static void        handle_normal_operation_loop(app_working_mem_t* const app_mem, uint16_t const* const current_rms, const int8_t temperature,
+static void        handle_normal_operation_loop(app_working_mem_t* const app_mem, int16_t const* const current_rms, const int8_t temperature,
                                                 const mcu_time_t* time);
 static void        set_motor_output(const uint8_t value);
 static bool        is_motor_started(void);
-static void        read_current(const mcu_time_t* time, uint16_t* current_ma);
+static void        read_current(const mcu_time_t* time, int16_t* current_ma);
 static void        read_temperature(const mcu_time_t* time, int8_t* temperature);
 
 void setup()
@@ -193,7 +193,7 @@ void loop()
 {
     static const mcu_time_t* time        = NULL;
     static int8_t            temperature = 0;
-    static uint16_t          current_ma  = 0;
+    static int16_t           current_ma  = 0;
 
 #ifdef DEBUG_REPORT_PERIODIC
     static mcu_time_t previous_time;
@@ -223,12 +223,13 @@ void loop()
     read_current(time, &current_ma);
     // Temperature is read once every 2 seconds
     read_temperature(time, &temperature);
-    uint16_t current_rms = 0;
+    int16_t current_rms = 0;
 
 #if CURRENT_RMS_ARBITRARY_FCT == 1
-    uint16_t dc_offset_current = 300;
+    int16_t dc_offset_current = 300;
     current_compute_rms_arbitrary(&current_ma, &current_rms, &dc_offset_current);
 #else
+    // Takes care about the remaining DC part, current_ma should still have this DC component otherwise RMS won't work.
     current_compute_rms_sine(&current_ma, &current_rms);
 #endif
 
@@ -304,8 +305,8 @@ void loop()
         // Report few things about current states
         previous_time = *time;
         LOG_CUSTOM("temperature : %hd °C\n", temperature);
-        LOG_CUSTOM("current : %hu mA\n", current_ma);
-        LOG_CUSTOM("current RMS: %hu mA\n", current_rms);
+        LOG_CUSTOM("current : %hd mA\n", current_ma);
+        LOG_CUSTOM("current RMS: %hd mA\n", current_rms);
         LOG_CUSTOM("config.target_temperature : %hd °C\n", config.target_temperature);
         LOG_CUSTOM("config.current_threshold : %hu mA\n\n", config.current_threshold);
     }
@@ -350,7 +351,7 @@ static app_state_t handle_motor_stalled_loop(uint32_t const* const start_time, c
     return APP_STATE_MOTOR_STALLED;
 }
 
-static void handle_normal_operation_loop(app_working_mem_t* const app_mem, uint16_t const* const current_rms, const int8_t temperature,
+static void handle_normal_operation_loop(app_working_mem_t* const app_mem, int16_t const* const current_rms, const int8_t temperature,
                                          const mcu_time_t* time)
 {
     // Only trigger this event once, at first detection of the button
@@ -392,7 +393,7 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, uint1
     }
 
     // Detected stalled motor, stop trying to trigger the compressor for now
-    bool overcurrent_detected = *current_rms > (STALLED_CURRENT_MULTIPLIER * config.current_threshold);
+    bool overcurrent_detected = *current_rms > (int16_t)(STALLED_CURRENT_MULTIPLIER * config.current_threshold);
     if ((config.current_threshold > 0) && (overcurrent_detected))
     {
         LOG("Overcurrent detected, motor is probably stalled. Waiting for pressure to equalize in heat pump circuit.\n");
@@ -435,9 +436,9 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, uint1
 #ifdef DEBUG_REPORT_PERIODIC
             // Print periodically the current waiting status
             static uint32_t last_print_time = 0;
-            if((time->seconds - last_print_time) >= DEBUG_REPORT_PERIOD_SECONDS_MOTOR_RESTART_ETA)
+            if ((time->seconds - last_print_time) >= DEBUG_REPORT_PERIOD_SECONDS_MOTOR_RESTART_ETA)
             {
-                LOG_CUSTOM("Waiting to restart motor. ETA : %u seconds.\n", (STALLED_MOTOR_WAIT_SECONDS - elapsed_seconds));
+                LOG_CUSTOM("Waiting to restart motor. ETA : %lu seconds.\n", (STALLED_MOTOR_WAIT_SECONDS - elapsed_seconds));
                 last_print_time = time->seconds;
             }
 #endif
@@ -482,7 +483,7 @@ static void read_temperature(const mcu_time_t* time, int8_t* temperature)
 
         *temperature = thermistor_read_temperature(&thermistor_ntc_100k_3950K_data, &ntc_resistance);
 
-#if DEBUG_TEMP == 1
+#if DEBUG_TEMP
         LOG_CUSTOM("Temp mv : %u mV\n", temp_reading_mv)
         LOG_CUSTOM("Vcc mv : %u mV\n", vcc_mv)
         LOG_CUSTOM("Upper resistance : %u k\n", upper_resistance)
@@ -493,17 +494,24 @@ static void read_temperature(const mcu_time_t* time, int8_t* temperature)
     }
 }
 
-static void read_current(const mcu_time_t* time, uint16_t* current_ma)
+static void read_current(const mcu_time_t* time, int16_t* current_ma)
 {
     static uint16_t last_check_ms = 0;
 
-    // Only trigger temperature reading if elapsed time is greater than 1 second.
-    if (time->milliseconds - last_check_ms >= 2U)
+    // Only trigger temperature reading if elapsed time is greater than 20 millisecond (for 50Hz).
+    if (time->milliseconds - last_check_ms >= 20U)
     {
         uint16_t current_raw = analogRead(current_sensor_pin);
         last_check_ms        = time->milliseconds;
 
-        uint16_t currend_reading_mv = (((vcc_mv * 10U) / 1024) * current_raw) / 10U;
-        current_from_voltage(&currend_reading_mv, current_ma);
+        int16_t current_reading_mv = (((vcc_mv * 10U) / 1024) * current_raw) / 10U;
+        //LOG_CUSTOM("Current reading from ADC (mv) : %d\n", current_reading_mv);
+
+        // Remove the DC part of the read current, as the opamp output is still polarized to vcc_mv/2
+        current_reading_mv -= CURRENT_SENSE_DC_BIAS_MV;
+        LOG_CUSTOM("Current reading mv - DC part : %d\n", current_reading_mv);
+
+        current_from_voltage(&current_reading_mv, current_ma);
+        LOG_CUSTOM("Current reading from ADC (ma) : %d\n\n", *current_ma);
     }
 }
