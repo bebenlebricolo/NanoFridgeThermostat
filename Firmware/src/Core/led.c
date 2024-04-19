@@ -11,9 +11,10 @@
 
 typedef struct
 {
-    bool configured;           /**> Used to know if this specific LED construct is used or not */
-    led_io_t io;               /**> Static led IO config                                       */
-    mcu_time_t last_processed; /**> Last time this LED was processed (used to perform soft PWM)*/
+    bool configured;           /**> Used to know if this specific LED construct is used or not      */
+    led_io_t io;               /**> Static led IO config                                            */
+    uint8_t io_state;          /**> IO state, only used for the LED_BLINK_NONE pattern (aka SOLID)  */
+    mcu_time_t last_processed; /**> Last time this LED was processed (used to perform soft PWM)     */
     struct
     {
         led_blink_pattern_t current;  /**> Current LED Pattern (used to trigger state changed events)                                       */
@@ -137,6 +138,12 @@ void led_set_blink_pattern(const uint8_t led_id, const led_blink_pattern_t patte
     }
 }
 
+void led_blink_none_set_io(const uint8_t led_id, const uint8_t io_state)
+{
+    internal_config_t *config = &internal_config[led_id];
+    config->io_state = io_state;
+}
+
 void led_set_next_event(const uint8_t led_id, const led_next_event_t * event)
 {
     if (led_id >= MAX_LED_COUNT)
@@ -186,7 +193,14 @@ void led_process(mcu_time_t const *const time)
                 // Only turn the led off in case of event generation
                 if (config->patterns.previous != config->patterns.current)
                 {
-                    led_off(&config->io);
+                    if(0 == config->io_state)
+                    {
+                        led_off(&config->io);
+                    }
+                    else
+                    {
+                        led_on(&config->io);
+                    }
                 }
 
                 break;

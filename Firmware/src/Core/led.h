@@ -121,6 +121,13 @@ void led_process(mcu_time_t const *const time);
 void led_set_blink_pattern(const uint8_t led_id, const led_blink_pattern_t pattern);
 
 /**
+ * @brief when pattern is LED_BLINK_NONE, specify in which state the LED IO should be
+ * @param[in] led_id    : internal led id
+ * @param[in] io_state  : desired IO state for that led
+*/
+void led_blink_none_set_io(const uint8_t led_id, const uint8_t io_state);
+
+/**
  * @brief sets next led event (to be processed once the current pattern is over)
  * @param[in] led_id : led index as per registered in the driver
  * @param[in] event  : the event that'll be used when the current pattern of the LED is over.

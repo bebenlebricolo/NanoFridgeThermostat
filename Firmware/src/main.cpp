@@ -438,13 +438,14 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, int16
         // Otherwise :
         // Don't try to restart the motor right after a stop, need to wait for pressure to equalize in the system
         // Otherwise we might run in the motor stalled condition
-        if (app_mem->tracking.motor_start_time == 0 || elapsed_seconds >= /* STALLED_MOTOR_WAIT_SECONDS */ 10)
+        if (app_mem->tracking.motor_start_time == 0 || elapsed_seconds >= STALLED_MOTOR_WAIT_SECONDS)
         {
             // Start the compressor
             LOG("Starting motor : temperature is high enough.\n");
             set_motor_output(HIGH);
             app_mem->tracking.motor_start_time = time->seconds;
             led_set_blink_pattern(led_driver_index, LED_BLINK_NONE);
+            led_blink_none_set_io(led_driver_index, HIGH);
         }
         else
         {
