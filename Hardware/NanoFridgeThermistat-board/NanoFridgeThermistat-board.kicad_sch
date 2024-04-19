@@ -5285,12 +5285,12 @@
 		)
 		(uuid "05c3bdc2-32b8-484d-b968-82f7d134a18c")
 	)
-	(text "Dual stage amplification with a gain of around 100 \n(simulated in LTSpice)"
+	(text "Dual stage amplification with a gain of around 21 / 22 \nMeasured on the real thing.\nIn LTSpice, the simulated gain was around 36, so there is a significant\ndifference between the simulation and the real hardware."
 		(exclude_from_sim no)
 		(at 143.51 127 0)
 		(effects
 			(font
-				(size 1 1)
+				(size 0.762 0.762)
 			)
 			(justify left bottom)
 		)

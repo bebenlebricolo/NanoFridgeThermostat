@@ -6,6 +6,8 @@ add_library(core STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/bridge.h
     ${CMAKE_CURRENT_SOURCE_DIR}/interpolation.c
     ${CMAKE_CURRENT_SOURCE_DIR}/interpolation.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/buffers.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/buffers.h
     ${CMAKE_CURRENT_SOURCE_DIR}/buttons.c
     ${CMAKE_CURRENT_SOURCE_DIR}/buttons.h
     ${CMAKE_CURRENT_SOURCE_DIR}/current.c

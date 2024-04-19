@@ -9,7 +9,7 @@ extern "C"
 #include <stdint.h>
 
 #define CURRENT_MEASURE_SAMPLES_PER_SINE 20U
-#define CURRENT_MEASURE_GAIN 25
+#define CURRENT_MEASURE_GAIN 22
 #define CURRENT_TRANSFORMER_INV_RATIO 10  /**> Current Transformer has a 1000:1 turn ratio, with a 0.1V/1A spec, so invert that*/
 #define CURRENT_RMS_ARBITRARY_FCT 0
 /**
@@ -21,6 +21,13 @@ void current_compute_rms_sine(int16_t const * const current_ma, int16_t * const 
 
 #if CURRENT_RMS_ARBITRARY_FCT
 
+/**
+ * @brief computes the RMS current value for an arbitrary waveform.
+ * That's useful for waveforms that are not exact sine waves
+ * @param[in]  current_ma : input current (milliamps)
+ * @param[out] out_rms_ma : output rms current (milliamps)
+ * @param[in]  dc_offset  : DC offset to be removed from the actual RMS value (we don't care for DC if only AC is the target)
+*/
 void current_compute_rms_arbitrary(int16_t const * const current_ma, int16_t * const out_rms_ma, int16_t const * const dc_offset);
 
 #endif
@@ -31,6 +38,9 @@ void current_compute_rms_arbitrary(int16_t const * const current_ma, int16_t * c
  * @param[out]  out_current_ma  : converted result in milliamperes.
 */
 void current_from_voltage(int16_t const * const reading_mv, int16_t * const out_current_ma);
+
+// Out data size should be at least CURRENT_MEASURE_SAMPLES_PER_SINE.
+void current_export_internal_data(int16_t (* out_data)[CURRENT_MEASURE_SAMPLES_PER_SINE]);
 
 
 #ifdef __cplusplus

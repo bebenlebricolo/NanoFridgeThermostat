@@ -16,7 +16,15 @@ void current_from_voltage(int16_t const* const reading_mv, int16_t* const out_cu
     // Total gain of the 2 stages amp is around 30.
     // Multiplying by 10
 
-    *out_current_ma = CURRENT_TRANSFORMER_INV_RATIO * (*reading_mv / (int16_t)(CURRENT_MEASURE_GAIN));
+    *out_current_ma = (CURRENT_TRANSFORMER_INV_RATIO * *reading_mv) / (CURRENT_MEASURE_GAIN);
+}
+
+void current_export_internal_data(int16_t (* out_data)[CURRENT_MEASURE_SAMPLES_PER_SINE])
+{
+    for(uint8_t i = 0 ; i < CURRENT_MEASURE_SAMPLES_PER_SINE ; i++)
+    {
+        (*out_data)[i] = data[i];
+    }
 }
 
 // Note : very naive implementation

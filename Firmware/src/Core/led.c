@@ -406,10 +406,10 @@ static void led_set_io(led_io_t *const io, uint8_t state)
 }
 
 
-static void toggle_led(led_io_t *const io)
-{
-    *io->port ^= (1 << io->pin);
-}
+// static void toggle_led(led_io_t *const io)
+// {
+//     *io->port ^= (1 << io->pin);
+// }
 
 
 static void led_off(led_io_t *const io)

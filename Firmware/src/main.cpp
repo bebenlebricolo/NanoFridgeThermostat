@@ -8,6 +8,7 @@
 #include "Core/mcu_time.h"
 #include "Core/thermistor.h"
 #include "Core/thermistor_ntc_100k_3950K.h"
+#include "Core/buffers.h"
 
 #include "Core/led.h"
 
@@ -51,6 +52,7 @@
 
 #define DEBUG_SERIAL
 #define DEBUG_TEMP 0
+#define CURRENT_LED_DEBUG
 #define DEBUG_REPORT_PERIODIC 1
 #if DEBUG_REPORT_PERIODIC == 1
     #define DEBUG_REPORT_PERIOD_SECONDS 1U
@@ -72,6 +74,7 @@
     #define LOG_CUSTOM(format, ...)
 #endif
 // clang-format on
+
 
 // Pin mapping
 const uint8_t motor_control_pin = 2; // D2
@@ -150,8 +153,10 @@ static void        handle_normal_operation_loop(app_working_mem_t* const app_mem
                                                 const mcu_time_t* time);
 static void        set_motor_output(const uint8_t value);
 static bool        is_motor_started(void);
-static void        read_current(const mcu_time_t* time, int16_t* current_ma);
+static void        read_current(const mcu_time_t* time, int16_t* current_ma, int16_t* current_rms_ma);
 static void        read_temperature(const mcu_time_t* time, int8_t* temperature);
+
+static circular_buffer_t voltage_buffer;
 
 void setup()
 {
@@ -187,6 +192,8 @@ void setup()
     led_init(leds, 1U);
     // led_set_blink_pattern(led_driver_index, LED_BLINK_NONE);
     sei();
+
+    circular_buffer_init(&voltage_buffer, 0);
 }
 
 void loop()
@@ -212,26 +219,18 @@ void loop()
             }, // Trailing comma is used to work around clang-format issues with struct fields initialization formatting
     };
 
+    int16_t current_rms    = 0;
+    bool    config_changed = false;
+
     // Very important to process the current time as fast as we can (polling mode)
     timebase_process();
     time = timebase_get_time();
     led_process(time);
 
-    bool config_changed = false;
-
     // Current is read at around 1kHz
-    read_current(time, &current_ma);
+    read_current(time, &current_ma, &current_rms);
     // Temperature is read once every 2 seconds
     read_temperature(time, &temperature);
-    int16_t current_rms = 0;
-
-#if CURRENT_RMS_ARBITRARY_FCT == 1
-    int16_t dc_offset_current = 300;
-    current_compute_rms_arbitrary(&current_ma, &current_rms, &dc_offset_current);
-#else
-    // Takes care about the remaining DC part, current_ma should still have this DC component otherwise RMS won't work.
-    current_compute_rms_sine(&current_ma, &current_rms);
-#endif
 
     // Process button events.
     // Used to trigger
@@ -309,6 +308,23 @@ void loop()
         LOG_CUSTOM("current RMS: %hd mA\n", current_rms);
         LOG_CUSTOM("config.target_temperature : %hd °C\n", config.target_temperature);
         LOG_CUSTOM("config.current_threshold : %hu mA\n\n", config.current_threshold);
+
+#ifdef DEBUG_RMS_CURRENT
+        // DEBUG RMS current calculation
+        static int16_t rms_data[CURRENT_MEASURE_SAMPLES_PER_SINE] = {0};
+        current_export_internal_data(&rms_data);
+        for(uint8_t i  = 0 ; i < CURRENT_MEASURE_SAMPLES_PER_SINE ; i++)
+        {
+            LOG_CUSTOM("RMS data [%hu] = %hd\n", i, rms_data[i]);
+        }
+#endif
+
+#ifdef DEBUG_CURRENT_VOLTAGE
+        for (uint8_t i = 0; i < CURRENT_MEASURE_SAMPLES_PER_SINE; i++)
+        {
+            LOG_CUSTOM("Voltage/current data (mv) [%hu] = %hd\n", i, voltage_buffer.data[i]);
+        }
+#endif
     }
 #endif
 }
@@ -494,24 +510,37 @@ static void read_temperature(const mcu_time_t* time, int8_t* temperature)
     }
 }
 
-static void read_current(const mcu_time_t* time, int16_t* current_ma)
+static void read_current(const mcu_time_t* time, int16_t* current_ma, int16_t* current_rms_ma)
 {
     static uint16_t last_check_ms = 0;
 
     // Only trigger temperature reading if elapsed time is greater than 20 millisecond (for 50Hz).
-    if (time->milliseconds - last_check_ms >= 20U)
+    if (time->milliseconds - last_check_ms >= (1000 / (CURRENT_MEASURE_SAMPLES_PER_SINE * MAINS_AC_FREQUENCY_HZ)))
     {
         uint16_t current_raw = analogRead(current_sensor_pin);
         last_check_ms        = time->milliseconds;
-
+#ifdef CURRENT_LED_DEBUG
+        PORTD ^= (1 << PORTD3);
+#endif
         int16_t current_reading_mv = (((vcc_mv * 10U) / 1024) * current_raw) / 10U;
-        //LOG_CUSTOM("Current reading from ADC (mv) : %d\n", current_reading_mv);
+        // LOG_CUSTOM("Current reading from ADC (mv) : %d\n", current_reading_mv);
 
         // Remove the DC part of the read current, as the opamp output is still polarized to vcc_mv/2
         current_reading_mv -= CURRENT_SENSE_DC_BIAS_MV;
-        LOG_CUSTOM("Current reading mv - DC part : %d\n", current_reading_mv);
+        circular_buffer_push_back(&voltage_buffer, current_reading_mv);
+        // LOG_CUSTOM("Current reading mv - DC part : %d\n", current_reading_mv);
 
         current_from_voltage(&current_reading_mv, current_ma);
-        LOG_CUSTOM("Current reading from ADC (ma) : %d\n\n", *current_ma);
+        // LOG_CUSTOM("Current reading from ADC (ma) : %d\n", *current_ma);
+
+#if CURRENT_RMS_ARBITRARY_FCT == 1
+        int16_t dc_offset_current = 300;
+        current_compute_rms_arbitrary(&current_ma, &current_rms, &dc_offset_current);
+#else
+        // Takes care about the remaining DC part, current_ma should still have this DC component otherwise RMS won't work.
+        current_compute_rms_sine(current_ma, current_rms_ma);
+#endif
+
+        // LOG_CUSTOM("Current RMS reading (ma) : %d\n", *current_rms_ma);
     }
 }
