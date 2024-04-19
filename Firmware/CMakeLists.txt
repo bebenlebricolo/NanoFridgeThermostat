@@ -27,12 +27,13 @@ set(CMAKE_C_STANDARD 17)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 if(UNIX)
-    set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-    set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} -Wall -Wextra")
-    set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 -Wall -Wextra")
-    set(CMAKE_C_FLAGS_DEBUG     "${CMAKE_C_FLAGS_DEBUG} -O0 -g3 -Wall -Wextra")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -Wall -Wextra")
-    set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} -O3 -Wall -Wextra")
+    set(WARNING_FLAGS           "-Wall -Wextra")
+    set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} ${WARNING_FLAGS}")
+    set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} ${WARNING_FLAGS}")
+    set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g3 ${WARNING_FLAGS}")
+    set(CMAKE_C_FLAGS_DEBUG     "${CMAKE_C_FLAGS_DEBUG} -O0 -g3 ${WARNING_FLAGS}")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 ${WARNING_FLAGS}")
+    set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} -O3 ${WARNING_FLAGS}")
 else()
     set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS} /W4")
     set(CMAKE_C_FLAGS           "${CMAKE_C_FLAGS} /W4")
@@ -41,15 +42,17 @@ else()
     set(CMAKE_C_FLAGS_DEBUG     "${CMAKE_C_FLAGS_DEBUG} /Od /W4")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /W4 ")
     set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} /O2 /W4")
+    add_compile_options("/D_USE_MATH_DEFINES")
 endif()
 
 # Add subdirectories
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Math
-    ${CMAKE_CURRENT_BINARY_DIR}/Math
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Core
+    ${CMAKE_CURRENT_BINARY_DIR}/Core
 )
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Thermistor
-    ${CMAKE_CURRENT_BINARY_DIR}/Thermistor
-)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Bridge
-    ${CMAKE_CURRENT_BINARY_DIR}/Bridge
-)
+
+# Does not compile with the same architecture -> needs to use the AVR toolchain
+if(0)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Hal
+        ${CMAKE_CURRENT_BINARY_DIR}/Hal
+    )
+endif()

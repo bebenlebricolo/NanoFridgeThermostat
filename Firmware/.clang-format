@@ -1,0 +1,42 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab : Never
+IndentCaseLabels: true
+
+BraceWrapping:
+  AfterEnum: true
+  AfterStruct: true
+  AfterFunction : true
+  AfterNamespace : true
+  AfterClass : true
+  AfterUnion : true
+  AfterElse : true
+  BeforeElse: true
+  AfterExternBlock: false
+  AfterControlStatement: Always
+  SplitEmptyFunction: true
+
+AllowShortFunctionsOnASingleLine: Empty
+
+BreakBeforeBraces: Custom
+#BreakBeforeBinaryOperators: All
+AlignEscapedNewlines: Right
+AlignTrailingComments: Always
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+
+BreakBeforeBinaryOperators: NonAssignment
+ColumnLimit : 150
+ReflowComments: true
+PenaltyBreakComment: 0
+#AllowAllParametersOfDeclarationOnNextLine: false
+ExperimentalAutoDetectBinPacking: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+BinPackParameters : true
+BinPackArguments: true
+AlignAfterOpenBracket: Align
+PointerAlignment: Left
+# For C++ only
+AccessModifierOffset: -4
+IndentAccessModifiers: false
