@@ -17,17 +17,17 @@ TEST_F(CurrentFixture, current_from_voltage_test)
     int16_t current_ma = 0;
     current_from_voltage(&reading_mv, &current_ma);
 
-    // 1V/amp -> 2V = 2Amps
-    // But Opamp gain is 10, so 2V -> 0,2 amps.
-    ASSERT_EQ(current_ma, 200);
+    // 0,1V/amp -> 2V = 20Amps
+    // But Opamp gain is 22, so 2V -> 0,9 amps.
+    ASSERT_EQ(current_ma, 909);
 
     reading_mv = 353;
     current_from_voltage(&reading_mv, &current_ma);
-    ASSERT_EQ(current_ma, 35);
+    ASSERT_EQ(current_ma, 160);
 
     reading_mv = 13;
     current_from_voltage(&reading_mv, &current_ma);
-    ASSERT_EQ(current_ma, 1);
+    ASSERT_EQ(current_ma, 5);
 }
 
 TEST_F(CurrentFixture, current_compute_rms_sine_test)

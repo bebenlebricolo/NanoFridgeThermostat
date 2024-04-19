@@ -3,12 +3,12 @@
 #include <stdint.h>
 
 #include "Core/bridge.h"
+#include "Core/buffers.h"
 #include "Core/buttons.h"
 #include "Core/current.h"
 #include "Core/mcu_time.h"
 #include "Core/thermistor.h"
 #include "Core/thermistor_ntc_100k_3950K.h"
-#include "Core/buffers.h"
 
 #include "Core/led.h"
 
@@ -27,17 +27,18 @@
 #define PERMANENT_STORAGE_FOOTER 0xAD
 
 
-#define SAMPLES_PER_SINE  20U               /**> How many samples we are using to depict a full sine wave.              */
-                                            /**> Appropriate values might range from 10 to 20                           */
+#define SAMPLES_PER_SINE  20U   /**> How many samples we are using to depict a full sine wave.                           */
+                                /**> Appropriate values might range from 10 to 20                                        */
 
-#define STALLED_CURRENT_MULTIPLIER 5U       /**> Used to detect overcurrent conditions.                                 */
-                                            /**> Inrush current is several times bigger than normal current             */
+#define STALLED_CURRENT_MULTIPLIER_PERCENT 20U /**> Used to detect overcurrent conditions.                               */
+                                               /**> Inrush current is several times bigger than normal current           */
 
-#define STEADY_MOTOR_RUNTIME 5U             /**> Minimum time to wait after motor is triggered to consider it in        */
-                                            /**> it's normal operation mode                                             */
+#define STEADY_MOTOR_RUNTIME 5U  /**> Minimum time to wait after motor is triggered to consider it in                    */
+                                 /**> it's normal operation mode                                                         */
 
-#define STALLED_MOTOR_WAIT_MINUTES 5U       /**> How long we'll need to wait between motor starts when motor is stalled */
-#define STALLED_MOTOR_WAIT_SECONDS (STALLED_MOTOR_WAIT_MINUTES * 60U)  /**> Same as above in seconds                    */
+#define STALLED_MOTOR_WAIT_MINUTES 5U                                  /**> How long we'll need to wait between motor starts when motor is stalled  */
+#define STALLED_MOTOR_WAIT_SECONDS (STALLED_MOTOR_WAIT_MINUTES * 60U)  /**> Same as above in seconds                                                */
+#define STALLED_MOTOR_IMMUNE_PERIOD_AFTER_RESTART 10U                  /**> How long (in seconds) we prevent over current detection after a restart */
 
 #define MAINS_AC_FREQUENCY_HZ 50U           /**> Mains outlet AC frequency (50 Hz in France)                            */
 
@@ -52,13 +53,13 @@
 
 #define DEBUG_SERIAL
 #define DEBUG_TEMP 0
-#define CURRENT_LED_DEBUG
+//#define CURRENT_LED_DEBUG
 #define DEBUG_REPORT_PERIODIC 1
 #if DEBUG_REPORT_PERIODIC == 1
     #define DEBUG_REPORT_PERIOD_SECONDS 1U
     #define DEBUG_REPORT_PERIOD_SECONDS_MOTOR_RESTART_ETA 10U
 #endif
-#define FORCE_OVERWRITE_EEPROM 1
+#define FORCE_OVERWRITE_EEPROM 0
 
 #ifdef DEBUG_SERIAL
     #define MSG_LENGTH 50U
@@ -74,7 +75,6 @@
     #define LOG_CUSTOM(format, ...)
 #endif
 // clang-format on
-
 
 // Pin mapping
 const uint8_t motor_control_pin = 2; // D2
@@ -313,7 +313,7 @@ void loop()
         // DEBUG RMS current calculation
         static int16_t rms_data[CURRENT_MEASURE_SAMPLES_PER_SINE] = {0};
         current_export_internal_data(&rms_data);
-        for(uint8_t i  = 0 ; i < CURRENT_MEASURE_SAMPLES_PER_SINE ; i++)
+        for (uint8_t i = 0; i < CURRENT_MEASURE_SAMPLES_PER_SINE; i++)
         {
             LOG_CUSTOM("RMS data [%hu] = %hd\n", i, rms_data[i]);
         }
@@ -409,8 +409,14 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, int16
     }
 
     // Detected stalled motor, stop trying to trigger the compressor for now
-    bool overcurrent_detected = *current_rms > (int16_t)(STALLED_CURRENT_MULTIPLIER * config.current_threshold);
-    if ((config.current_threshold > 0) && (overcurrent_detected))
+    bool overcurrent_detected = *current_rms > (int16_t)(((100 + STALLED_CURRENT_MULTIPLIER_PERCENT) * config.current_threshold) / 100);
+
+    // Wait for about 10 seconds to allow the motor to get back up to speed
+    // clang-format off
+    if ((config.current_threshold > 0)
+    &&  (overcurrent_detected)
+    &&  (time->seconds - app_mem->tracking.motor_stopped_time >= STALLED_MOTOR_IMMUNE_PERIOD_AFTER_RESTART))
+    // clang-format on
     {
         LOG("Overcurrent detected, motor is probably stalled. Waiting for pressure to equalize in heat pump circuit.\n");
         app_mem->app_state = APP_STATE_MOTOR_STALLED;

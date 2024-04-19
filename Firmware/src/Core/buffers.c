@@ -17,6 +17,6 @@ void circular_buffer_push_back(circular_buffer_t* const buffer, const int16_t va
 
 void circular_buffer_get_last(circular_buffer_t const * const buffer, int16_t * const val)
 {
-    uint8_t prev_index = buffer->index == 0 ? (CIRCULAR_BUFFER_SIZE - 1) : buffer->index - 1;
+    uint8_t prev_index = buffer->index == 0U ? (CIRCULAR_BUFFER_SIZE - 1U) : buffer->index - 1U;
     *val = buffer->data[prev_index];
 }

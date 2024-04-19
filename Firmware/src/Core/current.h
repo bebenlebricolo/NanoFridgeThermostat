@@ -24,8 +24,8 @@ void current_compute_rms_sine(int16_t const * const current_ma, int16_t * const 
 /**
  * @brief computes the RMS current value for an arbitrary waveform.
  * That's useful for waveforms that are not exact sine waves
- * @param[in]  current_ma : input current (milliamps)
  * @param[out] out_rms_ma : output rms current (milliamps)
+ * @param[in]  current_ma : input current (milliamps)
  * @param[in]  dc_offset  : DC offset to be removed from the actual RMS value (we don't care for DC if only AC is the target)
 */
 void current_compute_rms_arbitrary(int16_t const * const current_ma, int16_t * const out_rms_ma, int16_t const * const dc_offset);
