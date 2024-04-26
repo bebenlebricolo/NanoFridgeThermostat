@@ -19,6 +19,11 @@
 // -> Clang has troubles treating multiline macros comments
 // https://github.com/llvm/llvm-project/issues/54399
 
+
+// ################################################################################################################################################
+// ################################################### Read-only data & configs ###################################################################
+// ################################################################################################################################################
+
 // Permanent storage header and footer are used to make sure EEPROM was already
 // used and is valid. These are default constant values which is really
 // unlikely we'll find in the EEPROM straight from factory. They will be used
@@ -51,8 +56,17 @@
 #define TEMP_HYSTERESIS_HIGH 2U     /**> Upper limit of the hysteresis window. If temp gets higher than 2°C above the target temp, we start the compressor  */
 #define TEMP_HYSTERESIS_LOW 2U      /**> Lower limit of the hysteresis window. If temp gets lower than 2°C below the target temp, we stop the compressor    */
 
+
+// ################################################################################################################################################
+// ################################################### Debugging defines and flags ################################################################
+// ################################################################################################################################################
+
+
 #define DEBUG_SERIAL
 #define DEBUG_TEMP 0
+//#define DEBUG_CURRENT_RMS
+//#define DEBUG_CURRENT_VOLTAGE
+
 //#define CURRENT_LED_DEBUG
 #define DEBUG_REPORT_PERIODIC 1
 #if DEBUG_REPORT_PERIODIC == 1
@@ -74,7 +88,12 @@
     #define LOG(msg)
     #define LOG_CUSTOM(format, ...)
 #endif
+
 // clang-format on
+
+// ################################################################################################################################################
+// ########################################################## Other Constants #####################################################################
+// ################################################################################################################################################
 
 // Pin mapping
 const uint8_t motor_control_pin = 2; // D2
@@ -88,6 +107,11 @@ const uint16_t upper_resistance   = 330U;  /**> 320 kOhms resistor is used as th
 const uint16_t vcc_mv             = 5000U; /**> Board is powered via USB -> 5V                          */
 
 const uint8_t led_driver_index = 0U;
+
+// ################################################################################################################################################
+// ################################################### Application state machine ##################################################################
+// ################################################################################################################################################
+
 /**
  * @brief controls the application state (state machine)
  */
@@ -146,17 +170,25 @@ static persistent_config_t config = {
 
 static led_io_t leds[1U] = {{.port = &PORTD, .pin = status_led_pin}};
 
+// ################################################################################################################################################
+// ####################################################### Static declarations ####################################################################
+// ################################################################################################################################################
+
 static void read_buttons_events(button_state_t* const plus_button_event, button_state_t* const minus_button_event, const mcu_time_t* time);
+static void handle_normal_operation_loop(app_working_mem_t* const app_mem, int16_t const* const current_rms, const int8_t temperature,
+                                         const mcu_time_t* time);
+static void set_motor_output(const uint8_t value);
+static bool is_motor_started(void);
+static void read_temperature(const mcu_time_t* time, int8_t* temperature);
 
+#ifndef NO_CURRENT_MONITORING
 static app_state_t handle_motor_stalled_loop(uint32_t const* const start_time, const mcu_time_t* time);
-static void        handle_normal_operation_loop(app_working_mem_t* const app_mem, int16_t const* const current_rms, const int8_t temperature,
-                                                const mcu_time_t* time);
-static void        set_motor_output(const uint8_t value);
-static bool        is_motor_started(void);
 static void        read_current(const mcu_time_t* time, int16_t* current_ma, int16_t* current_rms_ma);
-static void        read_temperature(const mcu_time_t* time, int8_t* temperature);
+#endif
 
+#ifdef DEBUG_CURRENT_VOLTAGE
 static circular_buffer_t voltage_buffer;
+#endif
 
 void setup()
 {
@@ -177,7 +209,6 @@ void setup()
         // Writes the default config on first boot so that it's a known starting
         // point for subsequent eeprom references.
         persistent_mem_write_config(&config);
-
         persistent_mem_read_config(&config);
     }
     else
@@ -193,7 +224,9 @@ void setup()
     // led_set_blink_pattern(led_driver_index, LED_BLINK_NONE);
     sei();
 
+#ifdef DEBUG_CURRENT_VOLTAGE
     circular_buffer_init(&voltage_buffer, 0);
+#endif
 }
 
 void loop()
@@ -227,8 +260,10 @@ void loop()
     time = timebase_get_time();
     led_process(time);
 
+#ifndef NO_CURRENT_MONITORING
     // Current is read at around 1kHz
     read_current(time, &current_ma, &current_rms);
+#endif
     // Temperature is read once every 2 seconds
     read_temperature(time, &temperature);
 
@@ -280,10 +315,12 @@ void loop()
 
     switch (app_mem.app_state)
     {
+#ifndef NO_CURRENT_MONITORING
         case APP_STATE_MOTOR_STALLED: {
             app_mem.app_state = handle_motor_stalled_loop(&app_mem.tracking.stalled_cond_time, time);
             break;
         }
+#endif
 
         case APP_STATE_POST_BOOT_WAIT:
         case APP_STATE_NORMAL:
@@ -354,6 +391,7 @@ static void read_buttons_events(button_state_t* const plus_button_event, button_
     *minus_button_event = minus_button_mem.event;
 }
 
+#ifndef NO_CURRENT_MONITORING
 static app_state_t handle_motor_stalled_loop(uint32_t const* const start_time, const mcu_time_t* time)
 {
     // Wait for 5 minutes before exiting this state
@@ -366,6 +404,7 @@ static app_state_t handle_motor_stalled_loop(uint32_t const* const start_time, c
     }
     return APP_STATE_MOTOR_STALLED;
 }
+#endif
 
 static void handle_normal_operation_loop(app_working_mem_t* const app_mem, int16_t const* const current_rms, const int8_t temperature,
                                          const mcu_time_t* time)
@@ -408,6 +447,7 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, int16
         LOG_CUSTOM("Current : %u, threshold : %u\n", *current_rms, config.current_threshold)
     }
 
+#ifndef NO_CURRENT_MONITORING
     // Detected stalled motor, stop trying to trigger the compressor for now
     bool overcurrent_detected = *current_rms > (int16_t)(((100 + STALLED_CURRENT_MULTIPLIER_PERCENT) * config.current_threshold) / 100);
 
@@ -426,6 +466,7 @@ static void handle_normal_operation_loop(app_working_mem_t* const app_mem, int16
         led_set_blink_pattern(led_driver_index, LED_BLINK_WARNING);
         return;
     }
+#endif
 
     // Simple hysteresis to control the compressor based on a target temperature
     if (!is_motor_started() && (temperature > (int8_t)(config.target_temperature + TEMP_HYSTERESIS_HIGH)))
@@ -517,6 +558,7 @@ static void read_temperature(const mcu_time_t* time, int8_t* temperature)
     }
 }
 
+#ifndef NO_CURRENT_MONITORING
 static void read_current(const mcu_time_t* time, int16_t* current_ma, int16_t* current_rms_ma)
 {
     static uint16_t last_check_ms = 0;
@@ -534,8 +576,10 @@ static void read_current(const mcu_time_t* time, int16_t* current_ma, int16_t* c
 
         // Remove the DC part of the read current, as the opamp output is still polarized to vcc_mv/2
         current_reading_mv -= CURRENT_SENSE_DC_BIAS_MV;
+#ifdef DEBUG_CURRENT_VOLTAGE
         circular_buffer_push_back(&voltage_buffer, current_reading_mv);
-        // LOG_CUSTOM("Current reading mv - DC part : %d\n", current_reading_mv);
+        LOG_CUSTOM("Current reading mv - DC part : %d\n", current_reading_mv);
+#endif
 
         current_from_voltage(&current_reading_mv, current_ma);
         // LOG_CUSTOM("Current reading from ADC (ma) : %d\n", *current_ma);
@@ -546,8 +590,9 @@ static void read_current(const mcu_time_t* time, int16_t* current_ma, int16_t* c
 #else
         // Takes care about the remaining DC part, current_ma should still have this DC component otherwise RMS won't work.
         current_compute_rms_sine(current_ma, current_rms_ma);
-#endif
+#endif /* CURRENT_RMS_ARBITRARY_FCT */
 
         // LOG_CUSTOM("Current RMS reading (ma) : %d\n", *current_rms_ma);
     }
 }
+#endif /* NO_CURRENT_MONITORING */
