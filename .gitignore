@@ -32,3 +32,7 @@ Hardware/**/Gerbers.zip
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# Krita & Pixelorama scratch files
+*.kra~
+*.*~
