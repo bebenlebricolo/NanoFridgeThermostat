@@ -63,11 +63,9 @@
 
 
 #define DEBUG_SERIAL
-#define DEBUG_TEMP 0
-//#define DEBUG_CURRENT_RMS
-//#define DEBUG_CURRENT_VOLTAGE
+#define DEBUG_TEMP
+//#define DEBUG_CURRENT
 
-//#define CURRENT_LED_DEBUG
 #define DEBUG_REPORT_PERIODIC 1
 #if DEBUG_REPORT_PERIODIC == 1
     #define DEBUG_REPORT_PERIOD_SECONDS 1U
@@ -547,7 +545,7 @@ static void read_temperature(const mcu_time_t* time, int8_t* temperature)
 
         *temperature = thermistor_read_temperature(&thermistor_ntc_100k_3950K_data, &ntc_resistance);
 
-#if DEBUG_TEMP
+#ifdef DEBUG_TEMP
         LOG_CUSTOM("Temp mv : %u mV\n", temp_reading_mv)
         LOG_CUSTOM("Vcc mv : %u mV\n", vcc_mv)
         LOG_CUSTOM("Upper resistance : %u k\n", upper_resistance)
@@ -568,21 +566,11 @@ static void read_current(const mcu_time_t* time, int16_t* current_ma, int16_t* c
     {
         uint16_t current_raw = analogRead(current_sensor_pin);
         last_check_ms        = time->milliseconds;
-#ifdef CURRENT_LED_DEBUG
-        PORTD ^= (1 << PORTD3);
-#endif
         int16_t current_reading_mv = (((vcc_mv * 10U) / 1024) * current_raw) / 10U;
-        // LOG_CUSTOM("Current reading from ADC (mv) : %d\n", current_reading_mv);
 
         // Remove the DC part of the read current, as the opamp output is still polarized to vcc_mv/2
         current_reading_mv -= CURRENT_SENSE_DC_BIAS_MV;
-#ifdef DEBUG_CURRENT_VOLTAGE
-        circular_buffer_push_back(&voltage_buffer, current_reading_mv);
-        LOG_CUSTOM("Current reading mv - DC part : %d\n", current_reading_mv);
-#endif
-
         current_from_voltage(&current_reading_mv, current_ma);
-        // LOG_CUSTOM("Current reading from ADC (ma) : %d\n", *current_ma);
 
 #if CURRENT_RMS_ARBITRARY_FCT == 1
         int16_t dc_offset_current = 300;
@@ -590,9 +578,15 @@ static void read_current(const mcu_time_t* time, int16_t* current_ma, int16_t* c
 #else
         // Takes care about the remaining DC part, current_ma should still have this DC component otherwise RMS won't work.
         current_compute_rms_sine(current_ma, current_rms_ma);
-#endif /* CURRENT_RMS_ARBITRARY_FCT */
+#endif
 
-        // LOG_CUSTOM("Current RMS reading (ma) : %d\n", *current_rms_ma);
+#ifdef DEBUG_CURRENT
+        circular_buffer_push_back(&voltage_buffer, current_reading_mv);
+        LOG_CUSTOM("Current reading from ADC (mv) : %d\n", current_reading_mv);
+        LOG_CUSTOM("Current reading mv - DC part : %d\n", current_reading_mv);
+        LOG_CUSTOM("Current reading from ADC (ma) : %d\n", *current_ma);
+        LOG_CUSTOM("Current RMS reading (ma) : %d\n", *current_rms_ma);
+#endif
     }
 }
 #endif /* NO_CURRENT_MONITORING */
