@@ -36,3 +36,4 @@ Hardware/**/Gerbers.zip
 # Krita & Pixelorama scratch files
 *.kra~
 *.*~
+*.kra-autosave.*
