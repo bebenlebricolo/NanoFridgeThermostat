@@ -1,6 +1,11 @@
 #include "numbers_small.h"
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define IBASE 10
+#define TEMP_ITOA_MAX_DIGIT 2U
 
 // 'degFsmall', 8x8px
 const uint8_t sm_3x8_degFsmall [] PROGMEM = {
@@ -108,10 +113,40 @@ const uint8_t sm_12x18_zero [] PROGMEM = {
 
 
 
-void draw_temperature(const int8_t temp, image_buffer_t * const buffer, const bool overwrite)
+void draw_temperature(const int8_t temperature, image_buffer_t * const buffer, const bool overwrite)
 {
-    (void) temp;
     (void) buffer;
     (void) overwrite;
+
+    // 2's complement MSB is the sign bit.
+    bool is_positive = (bool) temperature >> 8;
+
+    // Buffer that'll hold the single digits of the input temperature
+    // -> temperature = -35
+    //    numbers = {3,5} ; is_positive = false;
+    uint8_t numbers[TEMP_ITOA_MAX_DIGIT] = {0};
+    int8_t tmp = temperature;
+    uint8_t idx = 0;
+    while(tmp != 0 && idx < TEMP_ITOA_MAX_DIGIT)
+    {
+        numbers[idx] = temperature % IBASE;
+        idx++;
+        tmp /= IBASE;
+    }
+
+    if(is_positive)
+    {
+        // Will break, needs finer-grain implementation : buffers are not of the same sizes !
+        // And characters are not the same width/height/
+        memcpy(sm_6x6_plus, buffer->data, sizeof(sm_6x6_plus));
+    }
+    else
+    {
+
+    }
+
+
+
+
 }
 
