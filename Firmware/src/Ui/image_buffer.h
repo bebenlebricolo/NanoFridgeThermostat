@@ -1,3 +1,5 @@
+#ifndef IMAGE_BUFFER_HEADER
+#define IMAGE_BUFFER_HEADER
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -9,7 +11,7 @@ extern "C"
 
 typedef struct
 {
-    uint8_t** data;         /**> Image data (one bit per pixel, black n' white)
+    uint8_t* data;          /**> Image data (one bit per pixel, black n' white)
                                  Note :
                                     - if the image width is a multiple of 8 (aligned on uint8_t format) :
                                        -> array size = (width/8) * (height).
@@ -26,3 +28,5 @@ typedef struct
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* IMAGE_BUFFER_HEADER */

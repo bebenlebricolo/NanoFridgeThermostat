@@ -1,5 +1,7 @@
-#include <avr/pgmspace.h>
-#include <image_buffer.h>
+#ifndef NUMBERS_SMALL_HEADER
+#define NUMBERS_SMALL_HEADER
+
+#include "image_buffer.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -52,3 +54,5 @@ void draw_temperature(const int8_t temp, image_buffer_t * const buffer, const bo
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* NUMBERS_SMALL_HEADER */

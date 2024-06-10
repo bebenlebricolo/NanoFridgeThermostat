@@ -7,3 +7,4 @@ add_library(hal STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/timebase.c
     ${CMAKE_CURRENT_SOURCE_DIR}/timebase.h
 )
+

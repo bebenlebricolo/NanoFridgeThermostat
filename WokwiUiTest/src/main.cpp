@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 #include "U8glib.h"
+#include "numbers_small.h"
 
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_DEV_0 | U8G_I2C_OPT_NO_ACK | U8G_I2C_OPT_FAST); // Fast I2C / TWI
 
@@ -252,6 +253,11 @@ void loop()
   if (first_boot)
   {
     draw_mockup_ui();
+    uint8_t data[16*3][18] = {0};
+    image_buffer_t buffer;
+    buffer.data = (uint8_t**) data;
+
+    draw_temperature(23, &buffer, false);
     first_boot = false;
     return;
   }

@@ -1,5 +1,11 @@
 #include "numbers_small.h"
 
+#ifndef UNIT_TESTING
+    #include <avr/pgmspace.h>
+#else
+    #define PROGMEM
+#endif
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -148,10 +154,11 @@ void draw_sign_sm6x6(const bool is_positive, image_buffer_t * const buffer, cons
     // Copy image with pixel-per-pixel offset
     for(uint8_t i = 0U ; i < length ; i++ )
     {
+        uint16_t buf_start = (i + y_offset) * buffer->width + x_offset/8;
         // No need to realign data left and right
         if(x_offset_inbyte == 0)
         {
-            uint8_t* buffer_data = &buffer->data[i + y_offset][x_offset/8];
+            uint8_t* buffer_data = &buffer->data[buf_start];
             if(overwrite)
             {
                 *buffer_data = img[i];
@@ -170,12 +177,14 @@ void draw_sign_sm6x6(const bool is_positive, image_buffer_t * const buffer, cons
             //  └ left offset         └  right offset
             uint8_t left_img = img[i] >> x_offset_inbyte;
             uint8_t right_img = img[i] << x_offset_inbyte;
-            uint8_t* buffer_data_left = &buffer->data[i + y_offset][x_offset/8];
-            uint8_t* buffer_data_right = &buffer->data[i + y_offset][(x_offset/8) + 1];
+            uint8_t* buffer_data_left = &buffer->data[buf_start];
+            uint8_t* buffer_data_right = &buffer->data[buf_start + 1];
             if(overwrite)
             {
-                *buffer_data_left = left_img;
-                *buffer_data_right = right_img;
+                uint8_t lmask = ((1 << (x_offset_inbyte)) - 1);
+                uint8_t rmask = ~lmask;
+                *buffer_data_left = (*buffer_data_left & lmask) | left_img;
+                *buffer_data_right = (*buffer_data_right & rmask) |right_img;
             }
             else
             {
@@ -190,19 +199,25 @@ void draw_sign_sm6x6(const bool is_positive, image_buffer_t * const buffer, cons
 void draw_temperature(const int8_t temperature, image_buffer_t * const buffer, const bool overwrite)
 {
     // 2's complement MSB is the sign bit.
-    bool is_positive = (bool) temperature >> 8;
+    //bool is_positive = (bool) temperature >> 7;
+    bool is_positive = temperature > 0;
 
     // Buffer that'll hold the single digits of the input temperature
     // -> temperature = -35
     //    numbers = {3,5} ; is_positive = false;
     uint8_t numbers[TEMP_ITOA_MAX_DIGIT] = {0};
     int8_t tmp = temperature;
-    uint8_t idx = 0;
-    while(tmp != 0 && idx < TEMP_ITOA_MAX_DIGIT)
+    uint8_t idx = TEMP_ITOA_MAX_DIGIT - 1;
+    while(tmp != 0)
     {
-        numbers[idx] = temperature % IBASE;
-        idx++;
+        numbers[idx] = tmp % IBASE;
         tmp /= IBASE;
+
+        if(idx == 0)
+        {
+            break;
+        }
+        idx--;
     }
 
     draw_sign_sm6x6(is_positive, buffer, overwrite);

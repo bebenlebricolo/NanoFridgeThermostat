@@ -51,6 +51,11 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Core
 )
 
 # Does not compile with the same architecture -> needs to use the AVR toolchain
+add_compile_definitions(UNIT_TESTING)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Ui
+    ${CMAKE_CURRENT_BINARY_DIR}/Ui
+)
+
 if(0)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Hal
         ${CMAKE_CURRENT_BINARY_DIR}/Hal
