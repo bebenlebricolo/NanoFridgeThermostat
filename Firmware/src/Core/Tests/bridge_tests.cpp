@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <vector>
-#include "bridge.h"
+#include "Sensors/bridge.h"
 
 class BridgeFixture : public ::testing::Test
 {

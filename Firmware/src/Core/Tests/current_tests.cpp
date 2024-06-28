@@ -1,7 +1,7 @@
 #include <cmath>
 
 #include <gtest/gtest.h>
-#include "current.h"
+#include "Sensors/current.h"
 
 class CurrentFixture : public ::testing::Test
 {

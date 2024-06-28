@@ -2,13 +2,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "Core/bridge.h"
 #include "Core/buffers.h"
 #include "Core/buttons.h"
-#include "Core/current.h"
 #include "Core/mcu_time.h"
-#include "Core/thermistor.h"
-#include "Core/thermistor_ntc_100k_3950K.h"
+#include "Core/Sensors/bridge.h"
+#include "Core/Sensors/current.h"
+#include "Core/Sensors/thermistor.h"
+#include "Core/Sensors/thermistor_ntc_100k_3950K.h"
 
 #include "Core/led.h"
 

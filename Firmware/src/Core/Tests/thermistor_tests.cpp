@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "thermistor.h"
-#include "thermistor_ntc_100k_3950K.h"
+#include "Sensors/thermistor.h"
+#include "Sensors/thermistor_ntc_100k_3950K.h"
 
 class ThermistorFixture : public ::testing::Test
 {

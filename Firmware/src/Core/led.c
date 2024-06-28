@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "interpolation.h"
+#include "Math/interpolation.h"
 #include "led.h"
 
 #ifdef LED_PWM_PULSE_STUFFING
