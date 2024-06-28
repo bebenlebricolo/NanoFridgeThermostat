@@ -54,3 +54,7 @@ declare_core_test(spanner_tests
 declare_core_test(sliding_average_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/sliding_average_tests.cpp
 )
+
+declare_core_test(logical_and_tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/logical_and_tests.cpp
+)

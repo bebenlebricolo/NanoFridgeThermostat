@@ -12,6 +12,8 @@ add_library(core STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/Sensors/current.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Filters/sliding_average.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Filters/sliding_average.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Filters/logical_and.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Filters/logical_and.h
     ${CMAKE_CURRENT_SOURCE_DIR}/Math/interpolation.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Math/interpolation.h
     ${CMAKE_CURRENT_SOURCE_DIR}/buffers.c

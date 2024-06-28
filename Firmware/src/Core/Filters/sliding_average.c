@@ -1,21 +1,31 @@
 #include "sliding_average.h"
+#include <stddef.h>
 
-void sliding_avg_push(sliding_avg_t * const buffer, const int8_t new_data, int8_t * const out)
+void savgi8_t_init(savgi8_t * const avg_data)
 {
-    if(buffer->capacity > 0)
+    avg_data->buffer.data = NULL;
+    avg_data->buffer.elem_count = 0;
+    avg_data->buffer.index = 0;
+    avg_data->buffer.tot_capacity = 0;
+    avg_data->sum = 0;
+}
+
+void sliding_avg_i8_push(savgi8_t * const avg_data, const int8_t new_data, int8_t * const out)
+{
+    if(avg_data->buffer.elem_count > 0)
     {
-        buffer->sum -= buffer->data[buffer->index];
+        avg_data->sum -= avg_data->buffer.data[avg_data->buffer.index];
     }
 
-    buffer->data[buffer->index] = new_data;
-    buffer->sum += new_data;
-    buffer->index++;
-    buffer->index %= SLIDING_AVG_BUFFER_SIZE;
+    avg_data->buffer.data[avg_data->buffer.index] = new_data;
+    avg_data->sum += new_data;
+    avg_data->buffer.index++;
+    avg_data->buffer.index %= avg_data->buffer.tot_capacity;
 
-    if(buffer->capacity < SLIDING_AVG_BUFFER_SIZE)
+    if(avg_data->buffer.elem_count < avg_data->buffer.tot_capacity)
     {
-        buffer->capacity++;
+        avg_data->buffer.elem_count++;
     }
 
-    *out = buffer->sum / buffer->capacity;
+    *out = avg_data->sum / avg_data->buffer.elem_count;
 }

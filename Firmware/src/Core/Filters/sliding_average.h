@@ -8,17 +8,22 @@ extern "C"
 
 #include <stdint.h>
 
-#define SLIDING_AVG_BUFFER_SIZE 10U
-
 typedef struct
 {
-    int8_t data[SLIDING_AVG_BUFFER_SIZE];
-    uint8_t index;
-    uint8_t capacity;
+    struct
+    {
+        int8_t* data;
+        uint8_t tot_capacity;
+        uint8_t elem_count;
+        uint8_t index;
+    } buffer;
     int16_t sum;
-} sliding_avg_t;
+} savgi8_t;
 
-void sliding_avg_push(sliding_avg_t * const buffer, const int8_t new_data, int8_t * const out);
+
+void savgi8_t_init(savgi8_t * const avg_data);
+
+void sliding_avg_i8_push(savgi8_t * const avg_data, const int8_t new_data, int8_t * const out);
 
 #ifdef __cplusplus
 }
