@@ -3,6 +3,7 @@ project(NanoThermostat_UiLib C CXX)
 
 add_library(ui STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/image_buffer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/bitmap.h
     ${CMAKE_CURRENT_SOURCE_DIR}/numbers_small.h
     ${CMAKE_CURRENT_SOURCE_DIR}/numbers_small.c
 )
