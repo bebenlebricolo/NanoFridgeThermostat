@@ -16,7 +16,8 @@ protected:
 
 TEST_F(NumbersSmallFIxture, temp_rendering_test)
 {
-    int8_t temp = 23;
+    //int8_t temp = 23;
+    int8_t temp = 2;
     const uint8_t WIDTH = 16U/8U*3U;
     const uint8_t HEIGHT = 18U;
 
@@ -39,24 +40,22 @@ TEST_F(NumbersSmallFIxture, temp_rendering_test)
     }
     std::cout << std::endl;
 
-    for(uint8_t i = 0; i < HEIGHT ; i++)
+    for(uint8_t j = 0; j < HEIGHT ; j++)
     {
-        std::cout << "line" << std::to_string(i) << "\t";
-        for (uint8_t j=0; j < WIDTH ; j++)
+        std::cout << "line" << std::to_string(j) << "\t";
+        for (uint8_t i=0; i < WIDTH ; i++)
         {
-            uint8_t tmp = data[j][i];
             for(uint8_t k = 0 ; k < 8; k++)
             {
-                uint8_t bit = tmp & 1 << (7 - k);
-                if(bit)
+                uint8_t bit = *((uint8_t*) data + i + j * WIDTH) & (1 << (7 - k));
+                if(bit != 0)
                 {
-                    std::cout << "#  ";
+                    std::cout << "⛾  ";
                 }
                 else
                 {
-                    std::cout << "•  ";
+                    std::cout << ".  ";
                 }
-                tmp >>= 1;
             }
         }
         std::cout << std::endl;

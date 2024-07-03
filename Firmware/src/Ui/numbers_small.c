@@ -1,15 +1,16 @@
 #include "numbers_small.h"
 
 #ifndef UNIT_TESTING
-    #include <avr/pgmspace.h>
+#include <avr/pgmspace.h>
 #else
-    #define PROGMEM
+#define PROGMEM
 #endif
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+// clang-format off
 #define IBASE 10
 #define TEMP_ITOA_MAX_DIGIT 2U
 
@@ -57,12 +58,15 @@ const uint8_t sm_6x6_minus [] PROGMEM = {
 };
 
 #define SM_6X6_PLUS_WIDTH_BYTES 1U
-#define SM_6X6_PLUS_HEIGH_BYTES 6U
+#define SM_6X6_PLUS_HEIGH_ROWS 6U
 
 // '+_1', 8x6px
 const uint8_t sm_6x6_plus [] PROGMEM = {
     0x30, 0x30, 0xfc, 0xfc, 0x30, 0x30
 };
+
+#define SM_12X18_WIDTH_BYTES 2U
+#define SM_12X18_HEIGH_ROWS 18U
 
 // '9', 16x18px
 const uint8_t sm_12x18_nine [] PROGMEM = {
@@ -125,47 +129,38 @@ const uint8_t sm_12x18_zero [] PROGMEM = {
     0xc0, 0x30, 0xc0, 0x30, 0xc0, 0x30, 0xc0, 0x30, 0xc0, 0x30, 0xc0, 0x30, 0xe0, 0x70, 0x70, 0xe0,
     0x7f, 0xe0, 0x1f, 0x80
 };
+// clang-format on
 
+static const uint8_t* numbers_lookup_table[10U] = {
+    [0] = sm_12x18_zero, [1] = sm_12x18_one, [2] = sm_12x18_two,   [3] = sm_12x18_three, [4] = sm_12x18_four,
+    [5] = sm_12x18_five, [6] = sm_12x18_six, [7] = sm_12x18_seven, [8] = sm_12x18_eight, [9] = sm_12x18_nine,
+};
 
-void draw_sign_sm6x6(const bool is_positive, image_buffer_t * const buffer, const bool overwrite)
+/**
+ * @brief
+ * @param[in] x_offset : x offset in pixels
+ */
+void draw_img(uint8_t const* const src_img, const uint8_t src_height, const uint8_t x_offset, const uint8_t y_offset, image_buffer_t* const buffer,
+              const bool overwrite)
 {
-    // Buffer can be 16x18 px per character to display
-    uint8_t* img = is_positive ? sm_6x6_plus :sm_6x6_minus;
-
-    // Pixel offset within the Buffer data
-    uint8_t x_offset = 0;
-    uint8_t y_offset = 0;
-    uint8_t length = is_positive ? SM_6X6_PLUS_HEIGH_BYTES : SM_6X6_MINUS_HEIGH_BYTES ;
-
-    if(is_positive)
-    {
-        x_offset = 4;
-        y_offset = 4;
-    }
-    else
-    {
-        x_offset = 4;
-        y_offset = 4;
-    }
-
     // Enable sub-byte offset (only needed for the x axis, y axis is pixel per pixel)
     uint8_t x_offset_inbyte = x_offset % 8U;
 
     // Copy image with pixel-per-pixel offset
-    for(uint8_t i = 0U ; i < length ; i++ )
+    for (uint8_t i = 0U; i < src_height; i++)
     {
-        uint16_t buf_start = (i + y_offset) * buffer->width + x_offset/8;
+        uint16_t buf_start = (i + y_offset) * buffer->width + x_offset / 8;
         // No need to realign data left and right
-        if(x_offset_inbyte == 0)
+        if (x_offset_inbyte == 0)
         {
             uint8_t* buffer_data = &buffer->data[buf_start];
-            if(overwrite)
+            if (overwrite)
             {
-                *buffer_data = img[i];
+                *buffer_data = src_img[i];
             }
             else
             {
-                *buffer_data |= img[i];
+                *buffer_data |= src_img[i];
             }
         }
         else
@@ -175,16 +170,16 @@ void draw_sign_sm6x6(const bool is_positive, image_buffer_t * const buffer, cons
             // buffer->data[n]| buffer->data[n+1]
             // 000 img        | img 0000
             //  └ left offset         └  right offset
-            uint8_t left_img = img[i] >> x_offset_inbyte;
-            uint8_t right_img = img[i] << x_offset_inbyte;
-            uint8_t* buffer_data_left = &buffer->data[buf_start];
+            uint8_t  left_img          = src_img[i] >> x_offset_inbyte;
+            uint8_t  right_img         = src_img[i] << x_offset_inbyte;
+            uint8_t* buffer_data_left  = &buffer->data[buf_start];
             uint8_t* buffer_data_right = &buffer->data[buf_start + 1];
-            if(overwrite)
+            if (overwrite)
             {
-                uint8_t lmask = ((1 << (x_offset_inbyte)) - 1);
-                uint8_t rmask = ~lmask;
-                *buffer_data_left = (*buffer_data_left & lmask) | left_img;
-                *buffer_data_right = (*buffer_data_right & rmask) |right_img;
+                uint8_t lmask      = ((1 << (x_offset_inbyte)) - 1);
+                uint8_t rmask      = ~lmask;
+                *buffer_data_left  = (*buffer_data_left & ~lmask) | left_img;
+                *buffer_data_right = (*buffer_data_right & ~rmask) | right_img;
             }
             else
             {
@@ -195,32 +190,65 @@ void draw_sign_sm6x6(const bool is_positive, image_buffer_t * const buffer, cons
     }
 }
 
+void draw_sign_sm6x6(const bool is_positive, image_buffer_t* const buffer, const bool overwrite)
+{
+    // Buffer can be 16x18 px per character to display
+    uint8_t* img = is_positive ? sm_6x6_plus : sm_6x6_minus;
 
-void draw_temperature(const int8_t temperature, image_buffer_t * const buffer, const bool overwrite)
+    // Pixel offset within the Buffer data
+    uint8_t x_offset = 0;
+    uint8_t y_offset = 0;
+    uint8_t length   = is_positive ? SM_6X6_PLUS_HEIGH_ROWS : SM_6X6_MINUS_HEIGH_BYTES;
+
+    if (is_positive)
+    {
+        x_offset = 4;
+        y_offset = 6;
+    }
+    else
+    {
+        x_offset = 4;
+        y_offset = 4;
+    }
+
+    draw_img(img, length, x_offset, y_offset, buffer, overwrite);
+}
+
+void draw_temperature(const int8_t temperature, image_buffer_t* const buffer, const bool overwrite)
 {
     // 2's complement MSB is the sign bit.
-    //bool is_positive = (bool) temperature >> 7;
+    // bool is_positive = (bool) temperature >> 7;
     bool is_positive = temperature > 0;
 
     // Buffer that'll hold the single digits of the input temperature
     // -> temperature = -35
     //    numbers = {3,5} ; is_positive = false;
     uint8_t numbers[TEMP_ITOA_MAX_DIGIT] = {0};
-    int8_t tmp = temperature;
-    uint8_t idx = TEMP_ITOA_MAX_DIGIT - 1;
-    while(tmp != 0)
+    int8_t  tmp                          = temperature;
+    uint8_t idx                          = TEMP_ITOA_MAX_DIGIT - 1;
+    uint8_t count                        = 0;
+    while (tmp != 0)
     {
         numbers[idx] = tmp % IBASE;
         tmp /= IBASE;
 
-        if(idx == 0)
+        if (idx == 0)
         {
             break;
         }
         idx--;
+        count++;
     }
 
     draw_sign_sm6x6(is_positive, buffer, overwrite);
 
+    // Draw numbers
+    uint8_t x_offset = SM_12X18_WIDTH_BYTES;
+    for (uint8_t i = 0; i < count; i++)
+    {
+        // print left first
+        uint8_t* img = numbers_lookup_table[numbers[count - i]];
+        draw_img(img, SM_12X18_HEIGH_ROWS, x_offset * 8U, 0U, buffer, overwrite);
+        x_offset += SM_12X18_WIDTH_BYTES;
+    }
 }
-

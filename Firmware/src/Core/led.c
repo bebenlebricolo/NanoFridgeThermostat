@@ -65,7 +65,7 @@ static void get_elapsed_milliseconds(mcu_time_t const *const time, internal_conf
 
 static void led_on(led_io_t *const io);
 static void led_set_io(led_io_t *const io, uint8_t state);
-static void toggle_led(led_io_t *const io);
+
 static void led_off(led_io_t *const io);
 
 void led_static_config_default(led_io_t *io)
